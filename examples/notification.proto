@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package wavego;
+
+import "proto2fixed/binary.proto";
+
+// Example demonstrating oneof usage for polymorphic messages
+// This schema shows how different notification types can be sent
+// using a oneof to represent different payload types
+
+option (binary.fixed) = true;
+option (binary.endian) = "little";
+option (binary.version) = "1.0.0";
+
+message Notification {
+  option (binary.message_id) = 1;
+  // Size: 4 + 4 + 12 = 20 bytes
+
+  uint32 id = 1;                   // Notification ID
+  NotificationType type = 2;       // Which variant is active
+
+  // Oneof for different notification payloads
+  // All variants overlay at offset 8
+  // Size = max(SystemNotif(8), UserNotif(8), ErrorNotif(12)) = 12 bytes
+  oneof payload {
+    SystemNotification system = 3;
+    UserNotification user = 4;
+    ErrorNotification error = 5;
+  }
+}
+
+enum NotificationType {
+  option (binary.enum_size) = 4;
+
+  NOTIFICATION_UNKNOWN = 0;
+  NOTIFICATION_SYSTEM = 1;
+  NOTIFICATION_USER = 2;
+  NOTIFICATION_ERROR = 3;
+}
+
+message SystemNotification {
+  // Size: 8 bytes
+  uint32 code = 1;           // System code
+  float value = 2;           // Associated value
+}
+
+message UserNotification {
+  // Size: 8 bytes
+  uint32 user_id = 1;        // User ID
+  uint32 message_code = 2;   // Message code (instead of string)
+}
+
+message ErrorNotification {
+  // Size: 12 bytes
+  uint32 error_code = 1;     // Error code
+  uint32 line_number = 2;    // Line number where error occurred
+  float severity = 3;        // Error severity (0.0-1.0)
+}
+
+// Example usage in C/C++ (Arduino/ESP32):
+//
+// Notification notif;
+// notif.id = 42;
+// notif.type = NOTIFICATION_USER;
+// notif.payload.user.user_id = 123;
+// notif.payload.user.message_code = 1001;
+//
+// uint8_t buffer[sizeof(Notification)];
+// encodeNotification(&notif, buffer);
+// Serial.write(buffer, sizeof(buffer));
+//
+// // To decode:
+// Notification received;
+// decodeNotification(buffer, &received);
+// if (received.type == NOTIFICATION_USER) {
+//     Serial.printf("User %d, message %d\n",
+//                   received.payload.user.user_id,
+//                   received.payload.user.message_code);
+// }
+
+// Example usage in Go:
+//
+// decoder := protocol.NewNotificationDecoder()
+// jsonStr, _ := decoder.Decode(binaryData)
+// // jsonStr contains all oneof variants decoded at the same offset
+// // {"id":42,"type":2,"payload":{"system":{...},"user":{...},"error":{...}}}
+//
+// // When encoding, populate the active variant:
+// encoder := protocol.NewNotificationEncoder()
+// json := `{"id":42,"type":2,"payload":{"user":{"userId":123,"messageCode":1001}}}`
+// binaryData, _ := encoder.Encode(json)

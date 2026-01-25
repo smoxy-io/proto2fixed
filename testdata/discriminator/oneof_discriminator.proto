@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package test;
+
+import "proto2fixed/binary.proto";
+
+option (binary.fixed) = true;
+option (binary.endian) = "little";
+option (binary.message_id_size) = 4;
+
+message OneofTest {
+  option (binary.message_id) = 1;
+
+  optional uint32 id = 1;
+
+  oneof value {
+    uint32 intValue = 2;
+    float floatValue = 3;
+    bool boolValue = 4;
+  }
+}

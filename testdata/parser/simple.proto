@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package test;
+
+message Simple {
+  uint32 value = 1;
+  float temperature = 2;
+}

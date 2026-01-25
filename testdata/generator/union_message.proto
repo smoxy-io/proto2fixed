@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package test;
+
+import "proto2fixed/binary.proto";
+
+option (binary.fixed) = true;
+option (binary.message_id_size) = 4;
+
+message UnionData {
+  option (binary.union) = true;
+  option (binary.message_id) = 1;
+  uint32 int_value = 1;
+  float float_value = 2;
+  uint64 long_value = 3;
+}

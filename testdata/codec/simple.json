@@ -1,0 +1,41 @@
+{
+  "protocol": "fixed-binary",
+  "version": "v1.0.0",
+  "endian": "little",
+  "messageIdSize": 1,
+  "messageHeader": {
+    "description": "All messages with messageId are prefixed with this header",
+    "size": 1,
+    "structure": [
+      {
+        "name": "messageId",
+        "offset": 0,
+        "size": 1,
+        "type": "uint8"
+      }
+    ]
+  },
+  "messages": {
+    "Simple": {
+      "totalSize": 8,
+      "messageId": 1,
+      "messageTotalSize": 9,
+      "structure": [
+        {
+          "name": "value",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "uint32",
+          "size": 4
+        },
+        {
+          "name": "temperature",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "float32",
+          "size": 4
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,42 @@
+# Binaries
+proto2fixed
+proto2fixed-*
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Build directories
+release/
+dist/
+build/bin/
+
+# Generated files
+examples/generated/
+
+# Test artifacts
+*.test
+*.out
+coverage.txt
+*results.txt
+
+# Go workspace
+vendor/
+
+# local development
+p2f
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak

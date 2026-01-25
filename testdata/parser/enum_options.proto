@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package test;
+
+import "proto2fixed/binary.proto";
+
+enum DefaultEnum {
+  DEFAULT_ZERO = 0;
+  DEFAULT_ONE = 1;
+  DEFAULT_TWO = 2;
+}
+
+message TestEnumOptions {
+  DefaultEnum status = 1;
+}

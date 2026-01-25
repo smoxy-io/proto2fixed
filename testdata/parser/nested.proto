@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package test;
+
+message Outer {
+  uint32 id = 1;
+  Inner nested = 2;
+}
+
+message Inner {
+  float value = 1;
+}

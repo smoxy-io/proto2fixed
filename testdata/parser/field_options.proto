@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package test;
+
+import "proto2fixed/binary.proto";
+
+message TestFieldOptions {
+  repeated uint32 values = 1;
+  string name = 2;
+  uint32 count = 3;
+}

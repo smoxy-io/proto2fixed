@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package test;
+
+import "proto2fixed/binary.proto";
+
+option (binary.fixed) = true;
+option (binary.endian) = "little";
+option (binary.message_id_size) = 4;
+
+message UnionTest {
+  option (binary.union) = true;
+  option (binary.message_id) = 1;
+
+  optional uint32 intValue = 1;
+  optional float floatValue = 2;
+  optional bool boolValue = 3;
+}

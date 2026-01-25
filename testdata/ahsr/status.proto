@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package ahsr;
+
+import "proto2fixed/binary.proto";
+
+option (binary.version) = "v1.0.0";
+option (binary.fixed) = true;
+option (binary.message_id_size) = 4;
+
+// main status report sent over UART0
+message StatusReport {
+  option (binary.message_id) = 1;
+
+  uint32 timestamp = 1;
+  Devices devices = 2;
+}
+
+// status report sent over UART1
+message StatusReportUART1 {
+  option (binary.message_id) = 2;
+
+  uint32 timestamp = 1;
+  DevicesUART1 devices = 2;
+}
+
+message Devices {
+  StatusInterface camera = 1;
+  LED led = 2;
+}
+
+message DevicesUART1 {
+  Camera camera = 1;
+}
+
+message StatusInterface {
+  // the name of the interface where where the device's Status Reports
+  // are being sent (e.g., UART1)
+  string statusChannel = 1	[(binary.string_size) = 8];
+}
+
+message LED {
+  option (binary.message_id) = 3;
+  bool on = 1;
+}
+
+message Camera {
+  bytes frame = 1	[(binary.array_size) = 1024];
+  bool enabled = 2;
+}

@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package test;
+
+import "proto2fixed/binary.proto";
+
+option (binary.fixed) = true;
+
+message Simple {
+  option (binary.message_id) = 1;
+  uint32 value = 1;
+}

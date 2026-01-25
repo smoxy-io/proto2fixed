@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package test;
+
+import "proto2fixed/binary.proto";
+
+option (binary.fixed) = true;
+option (binary.message_id_size) = 4;
+
+message Notification {
+  option (binary.message_id) = 1;
+  uint32 id = 1;
+
+  oneof payload {
+    SystemNotification system = 2;
+    UserNotification user = 3;
+    ErrorNotification error = 4;
+  }
+
+  uint32 timestamp = 5;
+}
+
+message SystemNotification {
+  uint32 code = 1;
+  float value = 2;
+}
+
+message UserNotification {
+  uint32 user_id = 1;
+  uint32 message_code = 2;
+}
+
+message ErrorNotification {
+  uint32 error_code = 1;
+  uint32 line_number = 2;
+  float severity = 3;
+}

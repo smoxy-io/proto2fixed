@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package test;
+
+import "proto2fixed/binary.proto";
+
+message TestNoOptions {
+  uint32 id = 1;
+  uint32 value = 2;
+}
+
+message TestWithOptions {
+  uint64 timestamp = 1;
+}

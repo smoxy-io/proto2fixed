@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package wavego;
+
+option go_package = 'pkg/proto/wavego';
+
+import "proto2fixed/binary.proto";
+
+option (binary.fixed) = true;
+option (binary.endian) = "little";
+option (binary.version) = "1.0.0";
+
+message StatusReport {
+  option (binary.message_id) = 1;
+
+  // Size calculated automatically: 4 + 360 + 40 + 27 = 431 bytes
+  // Optional validation: option (binary.size) = 431;
+
+  uint32 timestamp = 1;              // Offset: 0, Size: 4
+  repeated Servo servos = 2 [(binary.array_size) = 12];  // Offset: 4, Size: 360
+  IMU imu = 3;                       // Offset: 364, Size: 40
+  Battery battery = 4;               // Offset: 404, Size: 27
+}
+
+message Servo {
+  // Size: 30 bytes (6*4 + 2*1 + 4 padding)
+
+  float position = 1;                // Offset: 0
+  float target_position = 2;         // Offset: 4
+  float speed = 3;                   // Offset: 8
+  float load = 4;                    // Offset: 12
+  float voltage = 5;                 // Offset: 16
+  float temperature = 6;             // Offset: 20
+  bool moving = 7;                   // Offset: 24
+  bool enabled = 8;                  // Offset: 25
+  // Padding: 4 bytes (26-29) for array alignment
+}
+
+message IMU {
+  // Size: 40 bytes (10 * 4)
+
+  float accel_x = 1;
+  float accel_y = 2;
+  float accel_z = 3;
+  float gyro_x = 4;
+  float gyro_y = 5;
+  float gyro_z = 6;
+  float temperature = 7;
+  float pitch = 8;
+  float roll = 9;
+  float yaw = 10;
+}
+
+message Battery {
+  // Size: 27 bytes (4*4 + 4 + 1 + 1 + 5 padding)
+
+  float voltage = 1;                 // Offset: 0
+  float current = 2;                 // Offset: 4
+  float percentage = 3;              // Offset: 8
+  float temperature = 4;             // Offset: 12
+  uint32 charge_cycles = 5;          // Offset: 16
+  bool charging = 6;                 // Offset: 20
+  bool fault = 7;                    // Offset: 21
+  // Padding: 5 bytes (22-26) to align Battery in parent struct
+}
+
+message RobotInfo {
+  // Example with string field
+  // Size: 64 + 16 + 4 = 84 bytes
+
+  string robot_id = 1 [(binary.string_size) = 64];   // Offset: 0, 63 chars max + null
+  string model = 2 [(binary.string_size) = 16];      // Offset: 64, 15 chars max + null
+  uint32 firmware_version = 3;                       // Offset: 80
+}

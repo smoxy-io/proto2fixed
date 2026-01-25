@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package test;
+
+enum Status {
+  UNKNOWN = 0;
+  ACTIVE = 1;
+  STOPPED = 2;
+}
+
+message Data {
+  Status status = 1;
+}

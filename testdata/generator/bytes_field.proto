@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package test;
+
+import "proto2fixed/binary.proto";
+
+option (binary.fixed) = true;
+option (binary.message_id_size) = 4;
+
+message BytesMessage {
+  option (binary.message_id) = 1;
+  uint32 id = 1;
+  bytes data = 2 [(binary.array_size) = 64];
+  uint32 checksum = 3;
+}

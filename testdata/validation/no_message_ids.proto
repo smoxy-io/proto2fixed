@@ -1,0 +1,17 @@
+syntax = "proto3";
+package test;
+
+import "proto2fixed/binary.proto";
+
+option (binary.fixed) = true;
+
+// No message_id_size configured, no message_id on any message
+// This should ERROR
+
+message Command {
+  uint32 id = 1;
+}
+
+message Response {
+  uint32 status = 1;
+}

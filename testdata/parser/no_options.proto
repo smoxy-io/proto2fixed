@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package test;
+
+message TestNoOptions {
+  uint32 id = 1;
+  string name = 2;
+}
+
+enum BasicEnum {
+  BASIC_ZERO = 0;
+  BASIC_ONE = 1;
+}

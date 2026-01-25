@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package test;
+
+import "proto2fixed/binary.proto";
+
+option (binary.fixed) = true;
+option (binary.message_id_size) = 4;
+
+message Inner {
+  uint32 value = 1;
+  float ratio = 2;
+}
+
+message Outer {
+  option (binary.message_id) = 1;
+  uint32 id = 1;
+  Inner nested = 2;
+  bool active = 3;
+}

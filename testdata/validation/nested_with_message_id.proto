@@ -1,0 +1,17 @@
+syntax = "proto3";
+package test;
+
+import "proto2fixed/binary.proto";
+
+option (binary.fixed) = true;
+option (binary.message_id_size) = 4;
+
+message Nested {
+  option (binary.message_id) = 99;  // Nested message - should warn
+  uint32 value = 1;
+}
+
+message Parent {
+  option (binary.message_id) = 1;
+  Nested nested = 1;
+}

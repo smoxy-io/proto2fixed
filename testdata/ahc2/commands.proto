@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package ahc2;
+
+import "proto2fixed/binary.proto";
+
+option (binary.version) = "v1.0.0";
+
+message Command {
+  option (binary.message_id) = 1;
+
+  uint32 id = 1;
+  Action action = 2;	// MUST be an enum type
+  Parameters params = 3;	// MUST be a union type
+}
+
+enum Action {
+  option (binary.enum_size) = 1;	// equivalent to uint8
+  servo = 0;
+  multiServo = 1;
+  config = 2;
+}
+
+message Parameters {
+  option (binary.union) = true;	// union type
+  // field name MUST match action enum name
+  // actions that do not have parameters MUST NOT have a
+  // corresponding field name
+  ServoCommand servo = 1;
+  repeated ServoCommand multiServo = 2	[(binary.array_size) = 2];
+  ConfigCommand config = 3;
+}
+
+message ServoCommand {
+  string id = 1	[(binary.string_size) = 6];	// servo id
+  float targetPosition = 2;
+  float speed = 3;
+  float torqueLimit = 4;
+}
+
+// returns a basic response indicating that the config has been applied
+message ConfigCommand {
+  string name = 1	[(binary.string_size) = 32];
+  string value = 2	[(binary.string_size) = 64];
+}
+
+message Response {
+  option (binary.message_id) = 2;
+
+  uint32 id = 1;	// type MUST match type of Command.id
+  string errMsg = 2	[(binary.string_size) = 64];
+}

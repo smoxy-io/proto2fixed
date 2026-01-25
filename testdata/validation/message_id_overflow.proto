@@ -1,0 +1,12 @@
+syntax = "proto3";
+package test;
+
+import "proto2fixed/binary.proto";
+
+option (binary.fixed) = true;
+option (binary.message_id_size) = 1;  // 1 byte, max = 255
+
+message Command {
+  option (binary.message_id) = 300;  // EXCEEDS MAX - should error
+  uint32 id = 1;
+}
