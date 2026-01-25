@@ -1,0 +1,559 @@
+{
+  "protocol": "fixed-binary",
+  "version": "v1.0.0",
+  "endian": "little",
+  "messageIdSize": 1,
+  "messageHeader": {
+    "description": "All messages with messageId are prefixed with this header",
+    "size": 1,
+    "structure": [
+      {
+        "name": "messageId",
+        "offset": 0,
+        "size": 1,
+        "type": "uint8"
+      }
+    ]
+  },
+  "messages": {
+    "CalibrateCommand": {
+      "totalSize": 16,
+      "structure": [
+        {
+          "name": "servo_id",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "uint32",
+          "size": 4
+        },
+        {
+          "name": "center_position",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "min_position",
+          "fieldNumber": 3,
+          "offset": 8,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "max_position",
+          "fieldNumber": 4,
+          "offset": 12,
+          "type": "float32",
+          "size": 4
+        }
+      ]
+    },
+    "Command": {
+      "totalSize": 126,
+      "messageId": 1,
+      "messageTotalSize": 127,
+      "structure": [
+        {
+          "name": "id",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "uint32",
+          "size": 4
+        },
+        {
+          "name": "action",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "enum",
+          "size": 1
+        },
+        {
+          "name": "payload",
+          "fieldNumber": 3,
+          "offset": 5,
+          "type": "struct",
+          "size": 121,
+          "structure": [
+            {
+              "name": "servo",
+              "fieldNumber": 1,
+              "offset": 1,
+              "type": "struct",
+              "size": 16,
+              "structure": [
+                {
+                  "name": "servo_id",
+                  "fieldNumber": 1,
+                  "offset": 0,
+                  "type": "uint32",
+                  "size": 4
+                },
+                {
+                  "name": "target_position",
+                  "fieldNumber": 2,
+                  "offset": 4,
+                  "type": "float32",
+                  "size": 4
+                },
+                {
+                  "name": "speed",
+                  "fieldNumber": 3,
+                  "offset": 8,
+                  "type": "float32",
+                  "size": 4
+                },
+                {
+                  "name": "torque_limit",
+                  "fieldNumber": 4,
+                  "offset": 12,
+                  "type": "float32",
+                  "size": 4
+                }
+              ]
+            },
+            {
+              "name": "gait",
+              "fieldNumber": 2,
+              "offset": 1,
+              "type": "struct",
+              "size": 24,
+              "structure": [
+                {
+                  "name": "gait_type",
+                  "fieldNumber": 1,
+                  "offset": 0,
+                  "type": "enum",
+                  "size": 1
+                },
+                {
+                  "name": "speed",
+                  "fieldNumber": 2,
+                  "offset": 4,
+                  "type": "float32",
+                  "size": 4
+                },
+                {
+                  "name": "direction",
+                  "fieldNumber": 3,
+                  "offset": 8,
+                  "type": "float32",
+                  "size": 4
+                },
+                {
+                  "name": "turn_rate",
+                  "fieldNumber": 4,
+                  "offset": 12,
+                  "type": "float32",
+                  "size": 4
+                },
+                {
+                  "name": "step_height",
+                  "fieldNumber": 5,
+                  "offset": 16,
+                  "type": "float32",
+                  "size": 4
+                },
+                {
+                  "name": "stride_length",
+                  "fieldNumber": 6,
+                  "offset": 20,
+                  "type": "float32",
+                  "size": 4
+                }
+              ]
+            },
+            {
+              "name": "stop",
+              "fieldNumber": 3,
+              "offset": 1,
+              "type": "struct",
+              "size": 1,
+              "structure": [
+                {
+                  "name": "emergency",
+                  "fieldNumber": 1,
+                  "offset": 0,
+                  "type": "bool",
+                  "size": 1
+                }
+              ]
+            },
+            {
+              "name": "calibrate",
+              "fieldNumber": 4,
+              "offset": 1,
+              "type": "struct",
+              "size": 16,
+              "structure": [
+                {
+                  "name": "servo_id",
+                  "fieldNumber": 1,
+                  "offset": 0,
+                  "type": "uint32",
+                  "size": 4
+                },
+                {
+                  "name": "center_position",
+                  "fieldNumber": 2,
+                  "offset": 4,
+                  "type": "float32",
+                  "size": 4
+                },
+                {
+                  "name": "min_position",
+                  "fieldNumber": 3,
+                  "offset": 8,
+                  "type": "float32",
+                  "size": 4
+                },
+                {
+                  "name": "max_position",
+                  "fieldNumber": 4,
+                  "offset": 12,
+                  "type": "float32",
+                  "size": 4
+                }
+              ]
+            },
+            {
+              "name": "config",
+              "fieldNumber": 5,
+              "offset": 1,
+              "type": "struct",
+              "size": 120,
+              "structure": [
+                {
+                  "name": "parameter_name",
+                  "fieldNumber": 1,
+                  "offset": 0,
+                  "type": "string",
+                  "size": 64,
+                  "encoding": "null-terminated"
+                },
+                {
+                  "name": "parameter_value",
+                  "fieldNumber": 2,
+                  "offset": 64,
+                  "type": "string",
+                  "size": 56,
+                  "encoding": "null-terminated"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "CommandPayload": {
+      "totalSize": 121,
+      "union": true,
+      "structure": [
+        {
+          "name": "servo",
+          "fieldNumber": 1,
+          "offset": 1,
+          "type": "struct",
+          "size": 16,
+          "structure": [
+            {
+              "name": "servo_id",
+              "fieldNumber": 1,
+              "offset": 0,
+              "type": "uint32",
+              "size": 4
+            },
+            {
+              "name": "target_position",
+              "fieldNumber": 2,
+              "offset": 4,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "speed",
+              "fieldNumber": 3,
+              "offset": 8,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "torque_limit",
+              "fieldNumber": 4,
+              "offset": 12,
+              "type": "float32",
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "gait",
+          "fieldNumber": 2,
+          "offset": 1,
+          "type": "struct",
+          "size": 24,
+          "structure": [
+            {
+              "name": "gait_type",
+              "fieldNumber": 1,
+              "offset": 0,
+              "type": "enum",
+              "size": 1
+            },
+            {
+              "name": "speed",
+              "fieldNumber": 2,
+              "offset": 4,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "direction",
+              "fieldNumber": 3,
+              "offset": 8,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "turn_rate",
+              "fieldNumber": 4,
+              "offset": 12,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "step_height",
+              "fieldNumber": 5,
+              "offset": 16,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "stride_length",
+              "fieldNumber": 6,
+              "offset": 20,
+              "type": "float32",
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "stop",
+          "fieldNumber": 3,
+          "offset": 1,
+          "type": "struct",
+          "size": 1,
+          "structure": [
+            {
+              "name": "emergency",
+              "fieldNumber": 1,
+              "offset": 0,
+              "type": "bool",
+              "size": 1
+            }
+          ]
+        },
+        {
+          "name": "calibrate",
+          "fieldNumber": 4,
+          "offset": 1,
+          "type": "struct",
+          "size": 16,
+          "structure": [
+            {
+              "name": "servo_id",
+              "fieldNumber": 1,
+              "offset": 0,
+              "type": "uint32",
+              "size": 4
+            },
+            {
+              "name": "center_position",
+              "fieldNumber": 2,
+              "offset": 4,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "min_position",
+              "fieldNumber": 3,
+              "offset": 8,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "max_position",
+              "fieldNumber": 4,
+              "offset": 12,
+              "type": "float32",
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "config",
+          "fieldNumber": 5,
+          "offset": 1,
+          "type": "struct",
+          "size": 120,
+          "structure": [
+            {
+              "name": "parameter_name",
+              "fieldNumber": 1,
+              "offset": 0,
+              "type": "string",
+              "size": 64,
+              "encoding": "null-terminated"
+            },
+            {
+              "name": "parameter_value",
+              "fieldNumber": 2,
+              "offset": 64,
+              "type": "string",
+              "size": 56,
+              "encoding": "null-terminated"
+            }
+          ]
+        }
+      ],
+      "hasDiscriminator": true,
+      "discriminatorSize": 1
+    },
+    "ConfigCommand": {
+      "totalSize": 120,
+      "structure": [
+        {
+          "name": "parameter_name",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "string",
+          "size": 64,
+          "encoding": "null-terminated"
+        },
+        {
+          "name": "parameter_value",
+          "fieldNumber": 2,
+          "offset": 64,
+          "type": "string",
+          "size": 56,
+          "encoding": "null-terminated"
+        }
+      ]
+    },
+    "GaitCommand": {
+      "totalSize": 24,
+      "structure": [
+        {
+          "name": "gait_type",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "enum",
+          "size": 1
+        },
+        {
+          "name": "speed",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "direction",
+          "fieldNumber": 3,
+          "offset": 8,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "turn_rate",
+          "fieldNumber": 4,
+          "offset": 12,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "step_height",
+          "fieldNumber": 5,
+          "offset": 16,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "stride_length",
+          "fieldNumber": 6,
+          "offset": 20,
+          "type": "float32",
+          "size": 4
+        }
+      ]
+    },
+    "ServoCommand": {
+      "totalSize": 16,
+      "structure": [
+        {
+          "name": "servo_id",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "uint32",
+          "size": 4
+        },
+        {
+          "name": "target_position",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "speed",
+          "fieldNumber": 3,
+          "offset": 8,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "torque_limit",
+          "fieldNumber": 4,
+          "offset": 12,
+          "type": "float32",
+          "size": 4
+        }
+      ]
+    },
+    "StopCommand": {
+      "totalSize": 1,
+      "structure": [
+        {
+          "name": "emergency",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "bool",
+          "size": 1
+        }
+      ]
+    }
+  },
+  "enums": {
+    "ActionType": {
+      "size": 1,
+      "values": {
+        "ACTION_CALIBRATE": 4,
+        "ACTION_GAIT": 2,
+        "ACTION_NONE": 0,
+        "ACTION_SERVO": 1,
+        "ACTION_SET_CONFIG": 5,
+        "ACTION_STOP": 3
+      }
+    },
+    "GaitType": {
+      "size": 1,
+      "values": {
+        "GAIT_BOUND": 4,
+        "GAIT_CRAWL": 3,
+        "GAIT_STOP": 0,
+        "GAIT_TROT": 2,
+        "GAIT_WALK": 1
+      }
+    }
+  }
+}

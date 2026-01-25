@@ -1,4 +1,4 @@
-package proto2fixed
+package testdata
 
 import (
 	"os/exec"

@@ -1,5 +1,4 @@
 # Binaries
-proto2fixed
 proto2fixed-*
 *.exe
 *.dll
@@ -11,8 +10,8 @@ release/
 dist/
 build/bin/
 
-# Generated files
-examples/generated/
+# AI
+.claude
 
 # Test artifacts
 *.test

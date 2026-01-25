@@ -1,0 +1,456 @@
+{
+  "protocol": "fixed-binary",
+  "version": "v1.0.0",
+  "endian": "little",
+  "messageIdSize": 4,
+  "messageHeader": {
+    "description": "All messages with messageId are prefixed with this header",
+    "size": 4,
+    "structure": [
+      {
+        "name": "messageId",
+        "offset": 0,
+        "size": 4,
+        "type": "uint32"
+      }
+    ]
+  },
+  "messages": {
+    "Battery": {
+      "totalSize": 22,
+      "structure": [
+        {
+          "name": "voltage",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "current",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "percentage",
+          "fieldNumber": 3,
+          "offset": 8,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "temperature",
+          "fieldNumber": 4,
+          "offset": 12,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "charge_cycles",
+          "fieldNumber": 5,
+          "offset": 16,
+          "type": "uint32",
+          "size": 4
+        },
+        {
+          "name": "charging",
+          "fieldNumber": 6,
+          "offset": 20,
+          "type": "bool",
+          "size": 1
+        },
+        {
+          "name": "fault",
+          "fieldNumber": 7,
+          "offset": 21,
+          "type": "bool",
+          "size": 1
+        }
+      ]
+    },
+    "IMU": {
+      "totalSize": 40,
+      "structure": [
+        {
+          "name": "accel_x",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "accel_y",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "accel_z",
+          "fieldNumber": 3,
+          "offset": 8,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "gyro_x",
+          "fieldNumber": 4,
+          "offset": 12,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "gyro_y",
+          "fieldNumber": 5,
+          "offset": 16,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "gyro_z",
+          "fieldNumber": 6,
+          "offset": 20,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "temperature",
+          "fieldNumber": 7,
+          "offset": 24,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "pitch",
+          "fieldNumber": 8,
+          "offset": 28,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "roll",
+          "fieldNumber": 9,
+          "offset": 32,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "yaw",
+          "fieldNumber": 10,
+          "offset": 36,
+          "type": "float32",
+          "size": 4
+        }
+      ]
+    },
+    "RobotInfo": {
+      "totalSize": 84,
+      "structure": [
+        {
+          "name": "robot_id",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "string",
+          "size": 64,
+          "encoding": "null-terminated"
+        },
+        {
+          "name": "model",
+          "fieldNumber": 2,
+          "offset": 64,
+          "type": "string",
+          "size": 16,
+          "encoding": "null-terminated"
+        },
+        {
+          "name": "firmware_version",
+          "fieldNumber": 3,
+          "offset": 80,
+          "type": "uint32",
+          "size": 4
+        }
+      ]
+    },
+    "Servo": {
+      "totalSize": 26,
+      "structure": [
+        {
+          "name": "position",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "target_position",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "speed",
+          "fieldNumber": 3,
+          "offset": 8,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "load",
+          "fieldNumber": 4,
+          "offset": 12,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "voltage",
+          "fieldNumber": 5,
+          "offset": 16,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "temperature",
+          "fieldNumber": 6,
+          "offset": 20,
+          "type": "float32",
+          "size": 4
+        },
+        {
+          "name": "moving",
+          "fieldNumber": 7,
+          "offset": 24,
+          "type": "bool",
+          "size": 1
+        },
+        {
+          "name": "enabled",
+          "fieldNumber": 8,
+          "offset": 25,
+          "type": "bool",
+          "size": 1
+        }
+      ]
+    },
+    "StatusReport": {
+      "totalSize": 378,
+      "messageId": 1,
+      "messageTotalSize": 382,
+      "structure": [
+        {
+          "name": "timestamp",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "uint32",
+          "size": 4
+        },
+        {
+          "name": "servos",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "struct",
+          "size": 312,
+          "count": 12,
+          "elementSize": 26,
+          "structure": [
+            {
+              "name": "position",
+              "fieldNumber": 1,
+              "offset": 0,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "target_position",
+              "fieldNumber": 2,
+              "offset": 4,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "speed",
+              "fieldNumber": 3,
+              "offset": 8,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "load",
+              "fieldNumber": 4,
+              "offset": 12,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "voltage",
+              "fieldNumber": 5,
+              "offset": 16,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "temperature",
+              "fieldNumber": 6,
+              "offset": 20,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "moving",
+              "fieldNumber": 7,
+              "offset": 24,
+              "type": "bool",
+              "size": 1
+            },
+            {
+              "name": "enabled",
+              "fieldNumber": 8,
+              "offset": 25,
+              "type": "bool",
+              "size": 1
+            }
+          ]
+        },
+        {
+          "name": "imu",
+          "fieldNumber": 3,
+          "offset": 316,
+          "type": "struct",
+          "size": 40,
+          "structure": [
+            {
+              "name": "accel_x",
+              "fieldNumber": 1,
+              "offset": 0,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "accel_y",
+              "fieldNumber": 2,
+              "offset": 4,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "accel_z",
+              "fieldNumber": 3,
+              "offset": 8,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "gyro_x",
+              "fieldNumber": 4,
+              "offset": 12,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "gyro_y",
+              "fieldNumber": 5,
+              "offset": 16,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "gyro_z",
+              "fieldNumber": 6,
+              "offset": 20,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "temperature",
+              "fieldNumber": 7,
+              "offset": 24,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "pitch",
+              "fieldNumber": 8,
+              "offset": 28,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "roll",
+              "fieldNumber": 9,
+              "offset": 32,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "yaw",
+              "fieldNumber": 10,
+              "offset": 36,
+              "type": "float32",
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "battery",
+          "fieldNumber": 4,
+          "offset": 356,
+          "type": "struct",
+          "size": 22,
+          "structure": [
+            {
+              "name": "voltage",
+              "fieldNumber": 1,
+              "offset": 0,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "current",
+              "fieldNumber": 2,
+              "offset": 4,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "percentage",
+              "fieldNumber": 3,
+              "offset": 8,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "temperature",
+              "fieldNumber": 4,
+              "offset": 12,
+              "type": "float32",
+              "size": 4
+            },
+            {
+              "name": "charge_cycles",
+              "fieldNumber": 5,
+              "offset": 16,
+              "type": "uint32",
+              "size": 4
+            },
+            {
+              "name": "charging",
+              "fieldNumber": 6,
+              "offset": 20,
+              "type": "bool",
+              "size": 1
+            },
+            {
+              "name": "fault",
+              "fieldNumber": 7,
+              "offset": 21,
+              "type": "bool",
+              "size": 1
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

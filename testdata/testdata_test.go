@@ -1,4 +1,4 @@
-package proto2fixed_test
+package testdata_test
 
 import (
 	"os"

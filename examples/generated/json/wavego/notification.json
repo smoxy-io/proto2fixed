@@ -1,0 +1,203 @@
+{
+  "protocol": "fixed-binary",
+  "version": "v1.0.0",
+  "endian": "little",
+  "messageIdSize": 4,
+  "messageHeader": {
+    "description": "All messages with messageId are prefixed with this header",
+    "size": 4,
+    "structure": [
+      {
+        "name": "messageId",
+        "offset": 0,
+        "size": 4,
+        "type": "uint32"
+      }
+    ]
+  },
+  "messages": {
+    "ErrorNotification": {
+      "totalSize": 12,
+      "structure": [
+        {
+          "name": "error_code",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "uint32",
+          "size": 4
+        },
+        {
+          "name": "line_number",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "uint32",
+          "size": 4
+        },
+        {
+          "name": "severity",
+          "fieldNumber": 3,
+          "offset": 8,
+          "type": "float32",
+          "size": 4
+        }
+      ]
+    },
+    "Notification": {
+      "totalSize": 21,
+      "messageId": 1,
+      "messageTotalSize": 25,
+      "structure": [
+        {
+          "name": "id",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "uint32",
+          "size": 4
+        },
+        {
+          "name": "type",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "enum",
+          "size": 4
+        }
+      ],
+      "oneofs": [
+        {
+          "name": "payload",
+          "offset": 8,
+          "size": 13,
+          "variants": [
+            {
+              "name": "system",
+              "fieldNumber": 3,
+              "offset": 9,
+              "type": "struct",
+              "size": 8,
+              "structure": [
+                {
+                  "name": "code",
+                  "fieldNumber": 1,
+                  "offset": 0,
+                  "type": "uint32",
+                  "size": 4
+                },
+                {
+                  "name": "value",
+                  "fieldNumber": 2,
+                  "offset": 4,
+                  "type": "float32",
+                  "size": 4
+                }
+              ]
+            },
+            {
+              "name": "user",
+              "fieldNumber": 4,
+              "offset": 9,
+              "type": "struct",
+              "size": 8,
+              "structure": [
+                {
+                  "name": "user_id",
+                  "fieldNumber": 1,
+                  "offset": 0,
+                  "type": "uint32",
+                  "size": 4
+                },
+                {
+                  "name": "message_code",
+                  "fieldNumber": 2,
+                  "offset": 4,
+                  "type": "uint32",
+                  "size": 4
+                }
+              ]
+            },
+            {
+              "name": "error",
+              "fieldNumber": 5,
+              "offset": 9,
+              "type": "struct",
+              "size": 12,
+              "structure": [
+                {
+                  "name": "error_code",
+                  "fieldNumber": 1,
+                  "offset": 0,
+                  "type": "uint32",
+                  "size": 4
+                },
+                {
+                  "name": "line_number",
+                  "fieldNumber": 2,
+                  "offset": 4,
+                  "type": "uint32",
+                  "size": 4
+                },
+                {
+                  "name": "severity",
+                  "fieldNumber": 3,
+                  "offset": 8,
+                  "type": "float32",
+                  "size": 4
+                }
+              ]
+            }
+          ],
+          "discriminatorOffset": 8,
+          "discriminatorSize": 1
+        }
+      ]
+    },
+    "SystemNotification": {
+      "totalSize": 8,
+      "structure": [
+        {
+          "name": "code",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "uint32",
+          "size": 4
+        },
+        {
+          "name": "value",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "float32",
+          "size": 4
+        }
+      ]
+    },
+    "UserNotification": {
+      "totalSize": 8,
+      "structure": [
+        {
+          "name": "user_id",
+          "fieldNumber": 1,
+          "offset": 0,
+          "type": "uint32",
+          "size": 4
+        },
+        {
+          "name": "message_code",
+          "fieldNumber": 2,
+          "offset": 4,
+          "type": "uint32",
+          "size": 4
+        }
+      ]
+    }
+  },
+  "enums": {
+    "NotificationType": {
+      "size": 4,
+      "values": {
+        "NOTIFICATION_ERROR": 3,
+        "NOTIFICATION_SYSTEM": 1,
+        "NOTIFICATION_UNKNOWN": 0,
+        "NOTIFICATION_USER": 2
+      }
+    }
+  }
+}

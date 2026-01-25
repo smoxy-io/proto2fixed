@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package binary;
+
+import "google/protobuf/descriptor.proto";
+
+// File-level options
+
+// Enable fixed binary mode for the entire file
+extend google.protobuf.FileOptions {
+  bool fixed = 50001;
+}
+
+// Endianness for binary encoding ("little" or "big")
+extend google.protobuf.FileOptions {
+  string endian = 50002;
+}
+
+// Schema version for versioning
+extend google.protobuf.FileOptions {
+  string version = 50003;
+}
+
+// Message id encoding size in bytes (1, 2, 4, or 8)
+// (optional, default: 4)
+// Applies to all messages with message_id in this file
+extend google.protobuf.FileOptions {
+  uint32 message_id_size = 50004;
+}
+
+// Message-level options
+
+// Expected binary size in bytes (optional, used for validation)
+extend google.protobuf.MessageOptions {
+  uint32 size = 50010;
+}
+
+// Alignment boundary in bytes (default: 1, no alignment)
+extend google.protobuf.MessageOptions {
+  uint32 align = 50011;
+}
+
+// Union mode: all fields overlay at offset 0 (like C union)
+extend google.protobuf.MessageOptions {
+  bool union = 50012;
+}
+
+// Message Id: all top-level objects that are sent/received
+// must define a unique value for this option. (required, used as the
+// message header that identifies the message being sent/received)
+extend google.protobuf.MessageOptions {
+  uint32 message_id = 50013;
+}
+
+// Field-level options
+
+// Fixed array size for repeated fields
+extend google.protobuf.FieldOptions {
+  uint32 array_size = 50020;
+}
+
+// Fixed string size in bytes (includes null terminator)
+extend google.protobuf.FieldOptions {
+  uint32 string_size = 50021;
+}
+
+// Reserved field size for padding (used with reserved field numbers)
+extend google.protobuf.FieldOptions {
+  uint32 reserved_size = 50022;
+}
+
+// Enum-level options
+
+// Enum encoding size in bytes (1, 2, or 4)
+extend google.protobuf.EnumOptions {
+  uint32 enum_size = 50030;
+}
