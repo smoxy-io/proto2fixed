@@ -31,6 +31,7 @@ p2f
 *.swp
 *.swo
 *~
+.superset/
 
 # OS
 .DS_Store

@@ -405,6 +405,80 @@ const BatterySize = 22
 // RobotInfoSize is the fixed binary size
 const RobotInfoSize = 84
 
+type StatusReport struct {
+	// Offset: 0, Size: 4
+	Timestamp uint32 `json:"timestamp"`
+	// Offset: 4, Size: 360
+	Servos [12]Servo `json:"servos"`
+	// Offset: 364, Size: 40
+	Imu IMU `json:"imu"`
+	// Offset: 404, Size: 27
+	Battery Battery `json:"battery"`
+}
+
+// Size: 30 bytes (6*4 + 2*1 + 4 padding)
+type Servo struct {
+	// Offset: 0
+	Position float32 `json:"position"`
+	// Offset: 4
+	TargetPosition float32 `json:"target_position"`
+	// Offset: 8
+	Speed float32 `json:"speed"`
+	// Offset: 12
+	Load float32 `json:"load"`
+	// Offset: 16
+	Voltage float32 `json:"voltage"`
+	// Offset: 20
+	Temperature float32 `json:"temperature"`
+	// Offset: 24
+	Moving bool `json:"moving"`
+	// Offset: 25
+	Enabled bool `json:"enabled"`
+}
+
+// Size: 40 bytes (10 * 4)
+type IMU struct {
+	AccelX      float32 `json:"accel_x"`
+	AccelY      float32 `json:"accel_y"`
+	AccelZ      float32 `json:"accel_z"`
+	GyroX       float32 `json:"gyro_x"`
+	GyroY       float32 `json:"gyro_y"`
+	GyroZ       float32 `json:"gyro_z"`
+	Temperature float32 `json:"temperature"`
+	Pitch       float32 `json:"pitch"`
+	Roll        float32 `json:"roll"`
+	Yaw         float32 `json:"yaw"`
+}
+
+// Size: 27 bytes (4*4 + 4 + 1 + 1 + 5 padding)
+type Battery struct {
+	// Offset: 0
+	Voltage float32 `json:"voltage"`
+	// Offset: 4
+	Current float32 `json:"current"`
+	// Offset: 8
+	Percentage float32 `json:"percentage"`
+	// Offset: 12
+	Temperature float32 `json:"temperature"`
+	// Offset: 16
+	ChargeCycles uint32 `json:"charge_cycles"`
+	// Offset: 20
+	Charging bool `json:"charging"`
+	// Offset: 21
+	Fault bool `json:"fault"`
+}
+
+// Example with string field
+// Size: 64 + 16 + 4 = 84 bytes
+type RobotInfo struct {
+	// Offset: 0, 63 chars max + null
+	RobotId string `json:"robot_id"`
+	// Offset: 64, 15 chars max + null
+	Model string `json:"model"`
+	// Offset: 80
+	FirmwareVersion uint32 `json:"firmware_version"`
+}
+
 // statusHelpers scope for helper functions
 type statusHelpers struct{}
 

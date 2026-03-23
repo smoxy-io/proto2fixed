@@ -126,6 +126,9 @@ func (g *GoGenerator) Generate(schema *parser.Schema, layouts map[string]*analyz
 		sb.WriteString("\n")
 	}
 
+	// Generate enum types and message structs
+	g.generateStructs(&sb, schema, layouts)
+
 	//// Generate registry if message IDs are used
 	//if hasMessageIds {
 	//	g.generateRegistry(&sb, schema, layouts, byteOrder)
@@ -603,6 +606,128 @@ func (g *GoGenerator) generatePrimitiveEncoder(sb *strings.Builder, field *parse
 			sb.WriteString(baseIndent + "\t\t}\n")
 		}
 	}
+}
+
+func (g *GoGenerator) generateStructs(sb *strings.Builder, schema *parser.Schema, layouts map[string]*analyzer.MessageLayout) {
+	for _, enum := range schema.Enums {
+		g.generateEnumType(sb, enum)
+	}
+
+	for _, msg := range schema.Messages {
+		g.generateMessageStruct(sb, msg, layouts[msg.Name])
+	}
+}
+
+func writeGoComment(sb *strings.Builder, comment string) {
+	if comment == "" {
+		return
+	}
+
+	for _, line := range strings.Split(comment, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			sb.WriteString("//\n")
+		} else {
+			sb.WriteString("// " + line + "\n")
+		}
+	}
+}
+
+func writeGoCommentIndented(sb *strings.Builder, comment string) {
+	if comment == "" {
+		return
+	}
+
+	for _, line := range strings.Split(comment, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			sb.WriteString("\t//\n")
+		} else {
+			sb.WriteString("\t// " + line + "\n")
+		}
+	}
+}
+
+func (g *GoGenerator) generateEnumType(sb *strings.Builder, enum *parser.Enum) {
+	var underlyingType string
+
+	switch enum.Size {
+	case 1:
+		underlyingType = "uint8"
+	case 2:
+		underlyingType = "uint16"
+	default:
+		underlyingType = "int32"
+	}
+
+	writeGoComment(sb, enum.Comment)
+	sb.WriteString(fmt.Sprintf("type %s %s\n\n", enum.Name, underlyingType))
+	sb.WriteString("const (\n")
+
+	for _, value := range enum.Values {
+		writeGoCommentIndented(sb, value.Comment)
+		sb.WriteString(fmt.Sprintf("\t%s %s = %d\n", value.Name, enum.Name, value.Number))
+	}
+
+	sb.WriteString(")\n\n")
+}
+
+func (g *GoGenerator) generateMessageStruct(sb *strings.Builder, msg *parser.Message, layout *analyzer.MessageLayout) {
+	for _, oneof := range msg.Oneofs {
+		oneofTypeName := msg.Name + toPascalCase(oneof.Name) + "Oneof"
+
+		writeGoComment(sb, oneof.Comment)
+		sb.WriteString(fmt.Sprintf("type %s struct {\n", oneofTypeName))
+		sb.WriteString("\tDiscriminator uint8 `json:\"discriminator\"`\n")
+
+		for _, field := range oneof.Fields {
+			writeGoCommentIndented(sb, field.Comment)
+			sb.WriteString(fmt.Sprintf("\t%s %s `json:\"%s,omitempty\"`\n", toPascalCase(field.Name), g.getStructFieldType(field), field.Name))
+		}
+
+		sb.WriteString("}\n\n")
+	}
+
+	writeGoComment(sb, msg.Comment)
+	sb.WriteString(fmt.Sprintf("type %s struct {\n", msg.Name))
+
+	if msg.Union && layout.HasDiscriminator {
+		sb.WriteString("\tDiscriminator uint8 `json:\"discriminator\"`\n")
+
+		for _, fieldLayout := range layout.Fields {
+			field := fieldLayout.Field
+			writeGoCommentIndented(sb, field.Comment)
+			sb.WriteString(fmt.Sprintf("\t%s %s `json:\"%s,omitempty\"`\n", toPascalCase(field.Name), g.getStructFieldType(field), field.Name))
+		}
+	} else {
+		for _, fieldLayout := range layout.Fields {
+			field := fieldLayout.Field
+			writeGoCommentIndented(sb, field.Comment)
+			sb.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\"`\n", toPascalCase(field.Name), g.getStructFieldType(field), field.Name))
+		}
+
+		for _, oneof := range msg.Oneofs {
+			sb.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\"`\n", toPascalCase(oneof.Name), msg.Name+toPascalCase(oneof.Name)+"Oneof", oneof.Name))
+		}
+	}
+
+	sb.WriteString("}\n\n")
+}
+
+func (g *GoGenerator) getStructFieldType(field *parser.Field) string {
+	if field.Repeated {
+		if field.Type == parser.TypeBytes {
+			return fmt.Sprintf("[%d]byte", field.ArraySize)
+		}
+
+		return fmt.Sprintf("[%d]%s", field.ArraySize, getTypeNameGo(field))
+	}
+
+	if field.Type == parser.TypeBytes && field.ArraySize > 0 {
+		return fmt.Sprintf("[%d]byte", field.ArraySize)
+	}
+
+	return getTypeNameGo(field)
 }
 
 func (g *GoGenerator) generateHelpers(sb *strings.Builder) {

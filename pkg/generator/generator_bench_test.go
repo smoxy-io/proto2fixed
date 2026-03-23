@@ -517,3 +517,146 @@ func BenchmarkAllGenerators_RealWorldAHSR(b *testing.B) {
 		}
 	}
 }
+
+func createEnumSchemaAndLayouts() (*parser.Schema, map[string]*analyzer.MessageLayout) {
+	statusEnum := &parser.Enum{
+		Name: "Status",
+		Size: 1,
+		Values: []*parser.EnumValue{
+			{Name: "UNKNOWN", Number: 0},
+			{Name: "ACTIVE", Number: 1},
+			{Name: "INACTIVE", Number: 2},
+			{Name: "ERROR", Number: 3},
+		},
+	}
+
+	schema := &parser.Schema{
+		FileName:  "enum.proto",
+		Fixed:     true,
+		Endian:    "little",
+		Package:   "bench",
+		GoPackage: "bench",
+		Enums:     []*parser.Enum{statusEnum},
+		Messages: []*parser.Message{
+			{
+				Name:      "Device",
+				MessageId: 1,
+				Fields: []*parser.Field{
+					{Name: "id", Number: 1, Type: parser.TypeUint32},
+					{Name: "status", Number: 2, Type: parser.TypeEnum, EnumType: statusEnum},
+					{Name: "value", Number: 3, Type: parser.TypeFloat},
+				},
+			},
+		},
+	}
+
+	la := analyzer.NewLayoutAnalyzer()
+	if err := la.Analyze(schema); err != nil {
+		panic(err)
+	}
+
+	return schema, la.GetAllLayouts()
+}
+
+func createMixedTypesSchemaAndLayouts() (*parser.Schema, map[string]*analyzer.MessageLayout) {
+	innerMsg := &parser.Message{
+		Name: "Point",
+		Fields: []*parser.Field{
+			{Name: "x", Number: 1, Type: parser.TypeFloat},
+			{Name: "y", Number: 2, Type: parser.TypeFloat},
+		},
+	}
+
+	schema := &parser.Schema{
+		FileName:  "mixed.proto",
+		Fixed:     true,
+		Endian:    "little",
+		Package:   "bench",
+		GoPackage: "bench",
+		Messages: []*parser.Message{
+			innerMsg,
+			{
+				Name:      "Frame",
+				MessageId: 1,
+				Fields: []*parser.Field{
+					{Name: "id", Number: 1, Type: parser.TypeUint32},
+					{Name: "label", Number: 2, Type: parser.TypeString, StringSize: 32},
+					{Name: "payload", Number: 3, Type: parser.TypeBytes, ArraySize: 64},
+					{Name: "readings", Number: 4, Type: parser.TypeFloat, Repeated: true, ArraySize: 8},
+					{Name: "origin", Number: 5, Type: parser.TypeMessage, MessageType: innerMsg},
+				},
+			},
+		},
+	}
+
+	la := analyzer.NewLayoutAnalyzer()
+	if err := la.Analyze(schema); err != nil {
+		panic(err)
+	}
+
+	return schema, la.GetAllLayouts()
+}
+
+func BenchmarkGoGenerator_Struct_WithEnum(b *testing.B) {
+	schema, layouts := createEnumSchemaAndLayouts()
+	gen := NewGoGenerator()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := gen.Generate(schema, layouts)
+		if err != nil {
+			b.Fatalf("Generation failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkGoGenerator_Struct_MixedTypes(b *testing.B) {
+	schema, layouts := createMixedTypesSchemaAndLayouts()
+	gen := NewGoGenerator()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := gen.Generate(schema, layouts)
+		if err != nil {
+			b.Fatalf("Generation failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkGoGenerator_Struct_Union(b *testing.B) {
+	schema := &parser.Schema{
+		FileName:  "union.proto",
+		Fixed:     true,
+		Endian:    "little",
+		Package:   "bench",
+		GoPackage: "bench",
+		Messages: []*parser.Message{
+			{
+				Name:      "Variant",
+				Union:     true,
+				MessageId: 1,
+				Fields: []*parser.Field{
+					{Name: "int_val", Number: 1, Type: parser.TypeUint32},
+					{Name: "float_val", Number: 2, Type: parser.TypeFloat},
+					{Name: "bool_val", Number: 3, Type: parser.TypeBool},
+				},
+			},
+		},
+	}
+
+	la := analyzer.NewLayoutAnalyzer()
+	if err := la.Analyze(schema); err != nil {
+		b.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	layouts := la.GetAllLayouts()
+	gen := NewGoGenerator()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := gen.Generate(schema, layouts)
+		if err != nil {
+			b.Fatalf("Generation failed: %v", err)
+		}
+	}
+}
