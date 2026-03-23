@@ -252,6 +252,56 @@ const UserNotificationSize = 8
 // ErrorNotificationSize is the fixed binary size
 const ErrorNotificationSize = 12
 
+type NotificationType int32
+
+const (
+	NOTIFICATION_UNKNOWN NotificationType = 0
+	NOTIFICATION_SYSTEM  NotificationType = 1
+	NOTIFICATION_USER    NotificationType = 2
+	NOTIFICATION_ERROR   NotificationType = 3
+)
+
+// Oneof for different notification payloads
+// All variants overlay at offset 8
+// Size = max(SystemNotif(8), UserNotif(8), ErrorNotif(12)) = 12 bytes
+type NotificationPayloadOneof struct {
+	Discriminator uint8              `json:"discriminator"`
+	System        SystemNotification `json:"system,omitempty"`
+	User          UserNotification   `json:"user,omitempty"`
+	Error         ErrorNotification  `json:"error,omitempty"`
+}
+
+type Notification struct {
+	// Notification ID
+	Id uint32 `json:"id"`
+	// Which variant is active
+	Type    NotificationType         `json:"type"`
+	Payload NotificationPayloadOneof `json:"payload"`
+}
+
+type SystemNotification struct {
+	// Size: 8 bytes
+	Code uint32 `json:"code"`
+	// Associated value
+	Value float32 `json:"value"`
+}
+
+type UserNotification struct {
+	// Size: 8 bytes
+	UserId uint32 `json:"user_id"`
+	// Message code (instead of string)
+	MessageCode uint32 `json:"message_code"`
+}
+
+type ErrorNotification struct {
+	// Size: 12 bytes
+	ErrorCode uint32 `json:"error_code"`
+	// Line number where error occurred
+	LineNumber uint32 `json:"line_number"`
+	// Error severity (0.0-1.0)
+	Severity float32 `json:"severity"`
+}
+
 // notificationHelpers scope for helper functions
 type notificationHelpers struct{}
 

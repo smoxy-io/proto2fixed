@@ -66,6 +66,7 @@ func (s *Schema) BaseFilenameWithoutExt(capitalize bool) string {
 // Message represents a proto message definition
 type Message struct {
 	Name      string
+	Comment   string // Leading doc comment from the proto file
 	Size      uint32 // Optional, for validation (0 = not specified)
 	Align     uint32 // Alignment requirement (0 = natural alignment)
 	Union     bool   // If true, all fields overlay at offset 0
@@ -98,6 +99,7 @@ func (m *Message) HasType(kinds ...FieldType) bool {
 // Oneof represents a oneof group
 type Oneof struct {
 	Name      string
+	Comment   string // Leading doc comment from the proto file
 	Fields    []*Field
 	SourcePos string
 }
@@ -119,6 +121,7 @@ func (o *Oneof) HasType(kinds ...FieldType) bool {
 // Field represents a message field
 type Field struct {
 	Name        string
+	Comment     string // Leading doc comment from the proto file
 	Number      int32
 	Type        FieldType
 	Repeated    bool
@@ -160,6 +163,7 @@ func (f FieldType) Valid() bool {
 // Enum represents an enum definition
 type Enum struct {
 	Name      string
+	Comment   string // Leading doc comment from the proto file
 	Size      uint32 // 1, 2, or 4 bytes (0 = default 4)
 	Values    []*EnumValue
 	SourcePos string
@@ -167,8 +171,9 @@ type Enum struct {
 
 // EnumValue represents an enum constant
 type EnumValue struct {
-	Name   string
-	Number int32
+	Name    string
+	Comment string // Leading or trailing doc comment from the proto file
+	Number  int32
 }
 
 // Parser parses proto files and extracts fixed binary schema information
@@ -289,6 +294,7 @@ func (p *Parser) Parse(filename string) (*Schema, error) {
 func (p *Parser) parseMessage(md *desc.MessageDescriptor, msgMap map[string]*Message, enumMap map[string]*Enum) *Message {
 	msg := &Message{
 		Name:      md.GetName(),
+		Comment:   getComment(md),
 		Size:      getMessageOptionUint32(md, "binary.size"),
 		Align:     getMessageOptionUint32(md, "binary.align"),
 		Union:     getMessageOptionBool(md, "binary.union"),
@@ -313,6 +319,7 @@ func (p *Parser) parseMessage(md *desc.MessageDescriptor, msgMap map[string]*Mes
 	for _, oneofDesc := range oneofDescs {
 		oneof := &Oneof{
 			Name:      oneofDesc.GetName(),
+			Comment:   getComment(oneofDesc),
 			SourcePos: getSourcePos(oneofDesc),
 		}
 		msg.Oneofs = append(msg.Oneofs, oneof)
@@ -345,6 +352,7 @@ func (p *Parser) parseMessage(md *desc.MessageDescriptor, msgMap map[string]*Mes
 func (p *Parser) parseField(fd *desc.FieldDescriptor, msgMap map[string]*Message, enumMap map[string]*Enum) *Field {
 	field := &Field{
 		Name:       fd.GetName(),
+		Comment:    getComment(fd),
 		Number:     fd.GetNumber(),
 		Repeated:   fd.IsRepeated(),
 		ArraySize:  getFieldOptionUint32(fd, "binary.array_size"),
@@ -403,6 +411,7 @@ func (p *Parser) parseField(fd *desc.FieldDescriptor, msgMap map[string]*Message
 func (p *Parser) parseEnum(ed *desc.EnumDescriptor) *Enum {
 	enum := &Enum{
 		Name:      ed.GetName(),
+		Comment:   getComment(ed),
 		Size:      getEnumOptionUint32(ed, "binary.enum_size"),
 		SourcePos: getSourcePos(ed),
 	}
@@ -414,8 +423,9 @@ func (p *Parser) parseEnum(ed *desc.EnumDescriptor) *Enum {
 
 	for _, vd := range ed.GetValues() {
 		enum.Values = append(enum.Values, &EnumValue{
-			Name:   vd.GetName(),
-			Number: vd.GetNumber(),
+			Name:    vd.GetName(),
+			Comment: getComment(vd),
+			Number:  vd.GetNumber(),
 		})
 	}
 
@@ -867,6 +877,19 @@ func matchesOptionName(opt *descriptorpb.UninterpretedOption, targetName string)
 	}
 
 	return false
+}
+
+func getComment(d desc.Descriptor) string {
+	loc := d.GetSourceInfo()
+	if loc == nil {
+		return ""
+	}
+
+	if c := strings.TrimSpace(loc.GetLeadingComments()); c != "" {
+		return c
+	}
+
+	return strings.TrimSpace(loc.GetTrailingComments())
 }
 
 func getSourcePos(d desc.Descriptor) string {

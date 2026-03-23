@@ -773,3 +773,681 @@ func TestJSONGenerator_BytesField(t *testing.T) {
 		}
 	}
 }
+
+// hasLine checks whether output contains a line whose normalized whitespace form contains s.
+func hasLine(output, s string) bool {
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(strings.Join(strings.Fields(line), " "), s) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestGoGenerator_Struct_Primitives(t *testing.T) {
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Messages: []*parser.Message{
+			{
+				Name: "AllPrimitives",
+				Fields: []*parser.Field{
+					{Name: "flag", Number: 1, Type: parser.TypeBool},
+					{Name: "count", Number: 2, Type: parser.TypeUint32},
+					{Name: "signed", Number: 3, Type: parser.TypeInt32},
+					{Name: "big_count", Number: 4, Type: parser.TypeUint64},
+					{Name: "big_signed", Number: 5, Type: parser.TypeInt64},
+					{Name: "ratio", Number: 6, Type: parser.TypeFloat},
+					{Name: "precise", Number: 7, Type: parser.TypeDouble},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	if !strings.Contains(output, "type AllPrimitives struct") {
+		t.Error("Go output missing: type AllPrimitives struct")
+	}
+
+	for _, f := range []string{"Flag bool", "Count uint32", "Signed int32", "BigCount uint64", "BigSigned int64", "Ratio float32", "Precise float64"} {
+		if !hasLine(output, f) {
+			t.Errorf("Go output missing struct field: %s", f)
+		}
+	}
+
+	for _, tag := range []string{`json:"flag"`, `json:"count"`, `json:"signed"`, `json:"big_count"`, `json:"big_signed"`, `json:"ratio"`, `json:"precise"`} {
+		if !strings.Contains(output, tag) {
+			t.Errorf("Go output missing json tag: %s", tag)
+		}
+	}
+}
+
+func TestGoGenerator_Struct_Enum(t *testing.T) {
+	statusEnum := &parser.Enum{
+		Name: "Status",
+		Size: 1,
+		Values: []*parser.EnumValue{
+			{Name: "UNKNOWN", Number: 0},
+			{Name: "ACTIVE", Number: 1},
+			{Name: "INACTIVE", Number: 2},
+		},
+	}
+
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Enums:     []*parser.Enum{statusEnum},
+		Messages: []*parser.Message{
+			{
+				Name: "Device",
+				Fields: []*parser.Field{
+					{Name: "id", Number: 1, Type: parser.TypeUint32},
+					{Name: "status", Number: 2, Type: parser.TypeEnum, EnumType: statusEnum},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	for _, s := range []string{"type Status uint8", "type Device struct"} {
+		if !strings.Contains(output, s) {
+			t.Errorf("Go output missing: %s", s)
+		}
+	}
+
+	for _, line := range []string{
+		"UNKNOWN Status = 0",
+		"ACTIVE Status = 1",
+		"INACTIVE Status = 2",
+		"Id uint32",
+		"Status Status",
+	} {
+		if !hasLine(output, line) {
+			t.Errorf("Go output missing: %s", line)
+		}
+	}
+
+	// Verify JSON tags are present on struct fields
+	if !strings.Contains(output, `json:"id"`) {
+		t.Error("Go output missing json tag for id")
+	}
+	if !strings.Contains(output, `json:"status"`) {
+		t.Error("Go output missing json tag for status")
+	}
+}
+
+func TestGoGenerator_Struct_Enum_Size4(t *testing.T) {
+	modeEnum := &parser.Enum{
+		Name: "Mode",
+		Size: 4,
+		Values: []*parser.EnumValue{
+			{Name: "OFF", Number: 0},
+			{Name: "ON", Number: 1},
+		},
+	}
+
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Enums:     []*parser.Enum{modeEnum},
+		Messages: []*parser.Message{
+			{
+				Name: "Control",
+				Fields: []*parser.Field{
+					{Name: "mode", Number: 1, Type: parser.TypeEnum, EnumType: modeEnum},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	if !strings.Contains(output, "type Mode int32") {
+		t.Error("Go output missing: type Mode int32")
+	}
+
+	if !hasLine(output, "OFF Mode = 0") {
+		t.Error("Go output missing: OFF Mode = 0")
+	}
+}
+
+func TestGoGenerator_Struct_Enum_Size2(t *testing.T) {
+	flagEnum := &parser.Enum{
+		Name: "Flag",
+		Size: 2,
+		Values: []*parser.EnumValue{
+			{Name: "NONE", Number: 0},
+			{Name: "SET", Number: 1},
+		},
+	}
+
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Enums:     []*parser.Enum{flagEnum},
+		Messages: []*parser.Message{
+			{
+				Name: "Flags",
+				Fields: []*parser.Field{
+					{Name: "flag", Number: 1, Type: parser.TypeEnum, EnumType: flagEnum},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	if !strings.Contains(output, "type Flag uint16") {
+		t.Error("Go output missing: type Flag uint16")
+	}
+}
+
+func TestGoGenerator_Struct_Array(t *testing.T) {
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Messages: []*parser.Message{
+			{
+				Name: "Sensor",
+				Fields: []*parser.Field{
+					{Name: "readings", Number: 1, Type: parser.TypeFloat, Repeated: true, ArraySize: 8},
+					{Name: "flags", Number: 2, Type: parser.TypeBool, Repeated: true, ArraySize: 4},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	if !strings.Contains(output, "type Sensor struct") {
+		t.Error("Go output missing: type Sensor struct")
+	}
+
+	for _, f := range []string{"Readings [8]float32", "Flags [4]bool"} {
+		if !hasLine(output, f) {
+			t.Errorf("Go output missing struct field: %s", f)
+		}
+	}
+
+	for _, tag := range []string{`json:"readings"`, `json:"flags"`} {
+		if !strings.Contains(output, tag) {
+			t.Errorf("Go output missing json tag: %s", tag)
+		}
+	}
+}
+
+func TestGoGenerator_Struct_String(t *testing.T) {
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Messages: []*parser.Message{
+			{
+				Name: "Named",
+				Fields: []*parser.Field{
+					{Name: "id", Number: 1, Type: parser.TypeUint32},
+					{Name: "label", Number: 2, Type: parser.TypeString, StringSize: 32},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	if !strings.Contains(output, "type Named struct") {
+		t.Error("Go output missing: type Named struct")
+	}
+
+	for _, f := range []string{"Id uint32", "Label string"} {
+		if !hasLine(output, f) {
+			t.Errorf("Go output missing struct field: %s", f)
+		}
+	}
+
+	for _, tag := range []string{`json:"id"`, `json:"label"`} {
+		if !strings.Contains(output, tag) {
+			t.Errorf("Go output missing json tag: %s", tag)
+		}
+	}
+}
+
+func TestGoGenerator_Struct_Bytes(t *testing.T) {
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Messages: []*parser.Message{
+			{
+				Name: "Packet",
+				Fields: []*parser.Field{
+					{Name: "id", Number: 1, Type: parser.TypeUint32},
+					{Name: "payload", Number: 2, Type: parser.TypeBytes, ArraySize: 64},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	if !strings.Contains(output, "type Packet struct") {
+		t.Error("Go output missing: type Packet struct")
+	}
+
+	for _, f := range []string{"Id uint32", "Payload [64]byte"} {
+		if !hasLine(output, f) {
+			t.Errorf("Go output missing struct field: %s", f)
+		}
+	}
+
+	for _, tag := range []string{`json:"id"`, `json:"payload"`} {
+		if !strings.Contains(output, tag) {
+			t.Errorf("Go output missing json tag: %s", tag)
+		}
+	}
+}
+
+func TestGoGenerator_Struct_NestedMessage(t *testing.T) {
+	innerMsg := &parser.Message{
+		Name: "Point",
+		Fields: []*parser.Field{
+			{Name: "x", Number: 1, Type: parser.TypeFloat},
+			{Name: "y", Number: 2, Type: parser.TypeFloat},
+		},
+	}
+
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Messages: []*parser.Message{
+			innerMsg,
+			{
+				Name: "Shape",
+				Fields: []*parser.Field{
+					{Name: "id", Number: 1, Type: parser.TypeUint32},
+					{Name: "origin", Number: 2, Type: parser.TypeMessage, MessageType: innerMsg},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	for _, s := range []string{"type Point struct", "type Shape struct"} {
+		if !strings.Contains(output, s) {
+			t.Errorf("Go output missing: %s", s)
+		}
+	}
+
+	for _, f := range []string{"X float32", "Y float32", "Id uint32", "Origin Point"} {
+		if !hasLine(output, f) {
+			t.Errorf("Go output missing struct field: %s", f)
+		}
+	}
+
+	for _, tag := range []string{`json:"x"`, `json:"y"`, `json:"id"`, `json:"origin"`} {
+		if !strings.Contains(output, tag) {
+			t.Errorf("Go output missing json tag: %s", tag)
+		}
+	}
+}
+
+func TestGoGenerator_Struct_MessageArray(t *testing.T) {
+	innerMsg := &parser.Message{
+		Name: "Sample",
+		Fields: []*parser.Field{
+			{Name: "value", Number: 1, Type: parser.TypeFloat},
+		},
+	}
+
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Messages: []*parser.Message{
+			innerMsg,
+			{
+				Name: "Batch",
+				Fields: []*parser.Field{
+					{Name: "samples", Number: 1, Type: parser.TypeMessage, MessageType: innerMsg, Repeated: true, ArraySize: 10},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	for _, s := range []string{"type Sample struct", "type Batch struct"} {
+		if !strings.Contains(output, s) {
+			t.Errorf("Go output missing: %s", s)
+		}
+	}
+
+	if !hasLine(output, "Samples [10]Sample") {
+		t.Error("Go output missing struct field: Samples [10]Sample")
+	}
+}
+
+func TestGoGenerator_Struct_Union(t *testing.T) {
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Messages: []*parser.Message{
+			{
+				Name:      "Variant",
+				Union:     true,
+				MessageId: 1,
+				Fields: []*parser.Field{
+					{Name: "int_val", Number: 1, Type: parser.TypeUint32},
+					{Name: "float_val", Number: 2, Type: parser.TypeFloat},
+					{Name: "bool_val", Number: 3, Type: parser.TypeBool},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	if !strings.Contains(output, "type Variant struct") {
+		t.Error("Go output missing: type Variant struct")
+	}
+
+	for _, f := range []string{"Discriminator uint8", "IntVal uint32", "FloatVal float32", "BoolVal bool"} {
+		if !hasLine(output, f) {
+			t.Errorf("Go output missing struct field: %s", f)
+		}
+	}
+
+	for _, tag := range []string{`json:"discriminator"`, `json:"int_val,omitempty"`, `json:"float_val,omitempty"`, `json:"bool_val,omitempty"`} {
+		if !strings.Contains(output, tag) {
+			t.Errorf("Go output missing json tag: %s", tag)
+		}
+	}
+}
+
+func TestGoGenerator_Struct_Oneof(t *testing.T) {
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Messages: []*parser.Message{
+			{
+				Name:      "Event",
+				MessageId: 1,
+				Fields: []*parser.Field{
+					{Name: "id", Number: 1, Type: parser.TypeUint32, OneofIndex: -1},
+					{Name: "int_val", Number: 2, Type: parser.TypeInt32, OneofIndex: 0},
+					{Name: "float_val", Number: 3, Type: parser.TypeFloat, OneofIndex: 0},
+				},
+				Oneofs: []*parser.Oneof{
+					{
+						Name: "payload",
+						Fields: []*parser.Field{
+							{Name: "int_val", Number: 2, Type: parser.TypeInt32, OneofIndex: 0},
+							{Name: "float_val", Number: 3, Type: parser.TypeFloat, OneofIndex: 0},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	for _, s := range []string{"type EventPayloadOneof struct", "type Event struct"} {
+		if !strings.Contains(output, s) {
+			t.Errorf("Go output missing: %s", s)
+		}
+	}
+
+	for _, f := range []string{"Discriminator uint8", "IntVal int32", "FloatVal float32", "Id uint32", "Payload EventPayloadOneof"} {
+		if !hasLine(output, f) {
+			t.Errorf("Go output missing struct field: %s", f)
+		}
+	}
+
+	for _, tag := range []string{`json:"discriminator"`, `json:"int_val,omitempty"`, `json:"float_val,omitempty"`, `json:"id"`, `json:"payload"`} {
+		if !strings.Contains(output, tag) {
+			t.Errorf("Go output missing json tag: %s", tag)
+		}
+	}
+}
+
+func TestGoGenerator_Struct_CommentsPassThrough(t *testing.T) {
+	statusEnum := &parser.Enum{
+		Name:    "Status",
+		Comment: "Status represents the device state.",
+		Size:    1,
+		Values: []*parser.EnumValue{
+			{Name: "UNKNOWN", Comment: "UNKNOWN is the default unset state.", Number: 0},
+			{Name: "ACTIVE", Comment: "ACTIVE means the device is running.", Number: 1},
+		},
+	}
+
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Enums:     []*parser.Enum{statusEnum},
+		Messages: []*parser.Message{
+			{
+				Name:    "Device",
+				Comment: "Device represents a physical hardware device.",
+				Fields: []*parser.Field{
+					{Name: "id", Comment: "id is the unique device identifier.", Number: 1, Type: parser.TypeUint32},
+					{Name: "status", Number: 2, Type: parser.TypeEnum, EnumType: statusEnum},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	required := []string{
+		"// Status represents the device state.",
+		"// UNKNOWN is the default unset state.",
+		"// ACTIVE means the device is running.",
+		"// Device represents a physical hardware device.",
+		"// id is the unique device identifier.",
+	}
+
+	for _, s := range required {
+		if !strings.Contains(output, s) {
+			t.Errorf("Go output missing comment: %s", s)
+		}
+	}
+}
+
+func TestGoGenerator_Struct_NoBoilerplateComments(t *testing.T) {
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Enums: []*parser.Enum{
+			{Name: "Mode", Size: 1, Values: []*parser.EnumValue{{Name: "OFF", Number: 0}}},
+		},
+		Messages: []*parser.Message{
+			{
+				Name: "Simple",
+				Fields: []*parser.Field{
+					{Name: "value", Number: 1, Type: parser.TypeUint32},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	boilerplate := []string{
+		"is a generated struct",
+		"is a generated enum",
+		"represents oneof",
+	}
+
+	for _, s := range boilerplate {
+		if strings.Contains(output, s) {
+			t.Errorf("Go output contains boilerplate comment: %s", s)
+		}
+	}
+}
+
+func TestGoGenerator_Struct_MultilineComment(t *testing.T) {
+	schema := &parser.Schema{
+		FileName:  "test.proto",
+		Package:   "testpkg",
+		GoPackage: "testpkg",
+		Messages: []*parser.Message{
+			{
+				Name:    "Reading",
+				Comment: "Reading holds a sensor measurement.\nValues are in SI units.",
+				Fields: []*parser.Field{
+					{Name: "value", Number: 1, Type: parser.TypeFloat},
+				},
+			},
+		},
+	}
+
+	layoutAnalyzer := analyzer.NewLayoutAnalyzer()
+	if err := layoutAnalyzer.Analyze(schema); err != nil {
+		t.Fatalf("Layout analysis failed: %v", err)
+	}
+
+	gen := NewGoGenerator()
+	output, err := gen.Generate(schema, layoutAnalyzer.GetAllLayouts())
+	if err != nil {
+		t.Fatalf("Go generation failed: %v", err)
+	}
+
+	if !strings.Contains(output, "// Reading holds a sensor measurement.") {
+		t.Error("Go output missing first comment line")
+	}
+
+	if !strings.Contains(output, "// Values are in SI units.") {
+		t.Error("Go output missing second comment line")
+	}
+}

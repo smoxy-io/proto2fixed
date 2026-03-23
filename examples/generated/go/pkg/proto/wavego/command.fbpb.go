@@ -365,6 +365,107 @@ const CalibrateCommandSize = 16
 // ConfigCommandSize is the fixed binary size
 const ConfigCommandSize = 120
 
+type ActionType uint8
+
+const (
+	ACTION_NONE       ActionType = 0
+	ACTION_SERVO      ActionType = 1
+	ACTION_GAIT       ActionType = 2
+	ACTION_STOP       ActionType = 3
+	ACTION_CALIBRATE  ActionType = 4
+	ACTION_SET_CONFIG ActionType = 5
+)
+
+type GaitType uint8
+
+const (
+	GAIT_STOP  GaitType = 0
+	GAIT_WALK  GaitType = 1
+	GAIT_TROT  GaitType = 2
+	GAIT_CRAWL GaitType = 3
+	GAIT_BOUND GaitType = 4
+)
+
+type Command struct {
+	// Command ID (incrementing)
+	Id uint32 `json:"id"`
+	// Command type (1 byte enum)
+	Action ActionType `json:"action"`
+	// Padding: 3 bytes for payload alignment
+	Payload CommandPayload `json:"payload"`
+}
+
+// Union-like payload (largest member determines size)
+// Note: In fixed binary, we allocate space for the largest variant
+// Only one variant is "active" based on ActionType
+type CommandPayload struct {
+	Discriminator uint8 `json:"discriminator"`
+	// Active when action == ACTION_SERVO
+	Servo ServoCommand `json:"servo,omitempty"`
+	// Active when action == ACTION_GAIT
+	Gait GaitCommand `json:"gait,omitempty"`
+	// Active when action == ACTION_STOP
+	Stop StopCommand `json:"stop,omitempty"`
+	// Active when action == ACTION_CALIBRATE
+	Calibrate CalibrateCommand `json:"calibrate,omitempty"`
+	// Active when action == ACTION_SET_CONFIG
+	Config ConfigCommand `json:"config,omitempty"`
+}
+
+// Size: 16 bytes
+type ServoCommand struct {
+	// Servo number (0-11)
+	ServoId uint32 `json:"servo_id"`
+	// Target angle in degrees
+	TargetPosition float32 `json:"target_position"`
+	// Movement speed (0-100%)
+	Speed float32 `json:"speed"`
+	// Max torque percentage
+	TorqueLimit float32 `json:"torque_limit"`
+}
+
+// Size: 24 bytes
+type GaitCommand struct {
+	// Gait pattern (1 byte)
+	GaitType GaitType `json:"gait_type"`
+	// Padding: 3 bytes
+	Speed float32 `json:"speed"`
+	// Direction in degrees (0-360)
+	Direction float32 `json:"direction"`
+	// Turn rate (degrees/sec)
+	TurnRate float32 `json:"turn_rate"`
+	// Step height modifier
+	StepHeight float32 `json:"step_height"`
+	// Stride length modifier
+	StrideLength float32 `json:"stride_length"`
+}
+
+// Size: 1 byte
+type StopCommand struct {
+	// Emergency stop (immediate) vs graceful
+	Emergency bool `json:"emergency"`
+}
+
+// Size: 16 bytes
+type CalibrateCommand struct {
+	// 0xFF for all servos
+	ServoId uint32 `json:"servo_id"`
+	// Center position in degrees
+	CenterPosition float32 `json:"center_position"`
+	// Min position in degrees
+	MinPosition float32 `json:"min_position"`
+	// Max position in degrees
+	MaxPosition float32 `json:"max_position"`
+}
+
+// Size: 120 bytes (largest - has string field)
+type ConfigCommand struct {
+	// Config parameter
+	ParameterName string `json:"parameter_name"`
+	// Config value
+	ParameterValue string `json:"parameter_value"`
+}
+
 // commandHelpers scope for helper functions
 type commandHelpers struct{}
 
