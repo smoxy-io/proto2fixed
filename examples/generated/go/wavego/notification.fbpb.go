@@ -5,7 +5,6 @@ package wavego
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"math"
 )
@@ -23,7 +22,7 @@ const NotificationSize = 21
 // NotificationMessageId is the size of the message ID
 const NotificationMessageId = 1
 
-// NotificationDecoder decodes binary data to JSON
+// NotificationDecoder decodes binary data to a Notification struct
 type NotificationDecoder struct {
 	endian binary.ByteOrder
 }
@@ -35,89 +34,72 @@ func NewNotificationDecoder() *NotificationDecoder {
 	}
 }
 
-// Decode decodes binary data to JSON string
-func (d *NotificationDecoder) Decode(data []byte) ([]byte, error) {
+// Decode decodes binary data to a Notification struct
+func (d *NotificationDecoder) Decode(data []byte) (*Notification, error) {
 	if len(data) != NotificationSize {
 		return nil, fmt.Errorf("invalid data size: got %d, want %d", len(data), NotificationSize)
 	}
 
-	result := make(map[string]any)
+	result := &Notification{}
 
 	// id (field 1, offset: 0, size: 4)
-	result["id"] = d.endian.Uint32(data[0 : 0+4])
+	result.Id = d.endian.Uint32(data[0 : 0+4])
 
 	// type (field 2, offset: 4, size: 4)
-	result["type"] = int32(d.endian.Uint32(data[4 : 4+4]))
+	result.Type = NotificationType(d.endian.Uint32(data[4 : 4+4]))
 
-	// Oneof payload (offset: 8, size: 13)
-	discriminator := data[8]
-	payloadOneof := make(map[string]any)
+	// Oneof payload
+	result.Payload.Discriminator = data[8]
 
-	switch discriminator {
-	case 0: // No field set. skip
-		break
-
+	switch result.Payload.Discriminator {
+	case 0:
 	case 3: // system
 		// system (field 3, offset: 9, size: 8)
-		systemNested := make(map[string]any)
-
 		{
 			systemNestedData := data[9:17]
 
 			// code (field 1, offset: 0, size: 4)
-			systemNested["code"] = d.endian.Uint32(systemNestedData[0 : 0+4])
+			result.Payload.System.Code = d.endian.Uint32(systemNestedData[0 : 0+4])
 
 			// value (field 2, offset: 4, size: 4)
-			systemNested["value"] = math.Float32frombits(d.endian.Uint32(systemNestedData[4 : 4+4]))
+			result.Payload.System.Value = math.Float32frombits(d.endian.Uint32(systemNestedData[4 : 4+4]))
 		}
-
-		payloadOneof["system"] = systemNested
 
 	case 4: // user
 		// user (field 4, offset: 9, size: 8)
-		userNested := make(map[string]any)
-
 		{
 			userNestedData := data[9:17]
 
 			// user_id (field 1, offset: 0, size: 4)
-			userNested["userId"] = d.endian.Uint32(userNestedData[0 : 0+4])
+			result.Payload.User.UserId = d.endian.Uint32(userNestedData[0 : 0+4])
 
 			// message_code (field 2, offset: 4, size: 4)
-			userNested["messageCode"] = d.endian.Uint32(userNestedData[4 : 4+4])
+			result.Payload.User.MessageCode = d.endian.Uint32(userNestedData[4 : 4+4])
 		}
-
-		payloadOneof["user"] = userNested
 
 	case 5: // error
 		// error (field 5, offset: 9, size: 12)
-		errorNested := make(map[string]any)
-
 		{
 			errorNestedData := data[9:21]
 
 			// error_code (field 1, offset: 0, size: 4)
-			errorNested["errorCode"] = d.endian.Uint32(errorNestedData[0 : 0+4])
+			result.Payload.Error.ErrorCode = d.endian.Uint32(errorNestedData[0 : 0+4])
 
 			// line_number (field 2, offset: 4, size: 4)
-			errorNested["lineNumber"] = d.endian.Uint32(errorNestedData[4 : 4+4])
+			result.Payload.Error.LineNumber = d.endian.Uint32(errorNestedData[4 : 4+4])
 
 			// severity (field 3, offset: 8, size: 4)
-			errorNested["severity"] = math.Float32frombits(d.endian.Uint32(errorNestedData[8 : 8+4]))
+			result.Payload.Error.Severity = math.Float32frombits(d.endian.Uint32(errorNestedData[8 : 8+4]))
 		}
 
-		payloadOneof["error"] = errorNested
-
 	default:
-		return nil, fmt.Errorf("oneof payload: unknown discriminator value: %d", discriminator)
+		return nil, fmt.Errorf("oneof payload: unknown discriminator value: %d", result.Payload.Discriminator)
 	}
 
-	result["payload"] = payloadOneof
-
-	return json.Marshal(result)
+	return result, nil
 }
 
-// NotificationEncoder encodes JSON to binary data
+// NotificationEncoder encodes a Notification struct to binary data
 type NotificationEncoder struct {
 	endian binary.ByteOrder
 }
@@ -129,109 +111,50 @@ func NewNotificationEncoder() *NotificationEncoder {
 	}
 }
 
-// Encode encodes JSON string to binary data
-func (e *NotificationEncoder) Encode(msg []byte) ([]byte, error) {
-	data := make(map[string]any)
-
-	if err := json.Unmarshal(msg, &data); err != nil {
-		return nil, err
-	}
-
+// Encode encodes a Notification struct to binary data
+func (e *NotificationEncoder) Encode(msg *Notification) ([]byte, error) {
 	buffer := make([]byte, NotificationSize)
 
 	// id (field 1)
-	if v, vOk := data["id"]; vOk {
-		if numVal, ok := v.(float64); ok {
-			e.endian.PutUint32(buffer[0:0+4], uint32(numVal))
-		}
-	}
+	e.endian.PutUint32(buffer[0:0+4], msg.Id)
 
 	// type (field 2)
-	if v, vOk := data["type"]; vOk {
-		if numVal, ok := v.(float64); ok {
-			e.endian.PutUint32(buffer[4:4+4], uint32(numVal))
-		}
-	}
+	e.endian.PutUint32(buffer[4:4+4], uint32(msg.Type))
 
 	// Oneof payload
-	if payloadData, payloadOk := data["payload"].(map[string]any); payloadOk && len(payloadData) == 1 {
-		// only one variant is allowed in a oneof
-		for key, _ := range payloadData {
-			switch key {
-			case "system":
-				buffer[8] = 3
+	buffer[8] = msg.Payload.Discriminator
 
-				// system (field 3)
-				if systemData, systemOk := payloadData["system"].(map[string]any); systemOk {
-					// code (field 1)
-					if v, vOk := systemData["code"]; vOk {
-						if numVal, ok := v.(float64); ok {
-							e.endian.PutUint32(buffer[9:9+4], uint32(numVal))
-						}
-					}
+	switch msg.Payload.Discriminator {
+	case 0:
+	case 3: // system
+		// system (field 3)
+		// code (field 1)
+		e.endian.PutUint32(buffer[9:9+4], msg.Payload.System.Code)
 
-					// value (field 2)
-					if v, vOk := systemData["value"]; vOk {
-						if numVal, ok := v.(float64); ok {
-							e.endian.PutUint32(buffer[13:13+4], math.Float32bits(float32(numVal)))
-						}
-					}
-				}
+		// value (field 2)
+		e.endian.PutUint32(buffer[13:13+4], math.Float32bits(msg.Payload.System.Value))
 
-			case "user":
-				buffer[8] = 4
+	case 4: // user
+		// user (field 4)
+		// user_id (field 1)
+		e.endian.PutUint32(buffer[9:9+4], msg.Payload.User.UserId)
 
-				// user (field 4)
-				if userData, userOk := payloadData["user"].(map[string]any); userOk {
-					// user_id (field 1)
-					if v, vOk := userData["userId"]; vOk {
-						if numVal, ok := v.(float64); ok {
-							e.endian.PutUint32(buffer[9:9+4], uint32(numVal))
-						}
-					}
+		// message_code (field 2)
+		e.endian.PutUint32(buffer[13:13+4], msg.Payload.User.MessageCode)
 
-					// message_code (field 2)
-					if v, vOk := userData["messageCode"]; vOk {
-						if numVal, ok := v.(float64); ok {
-							e.endian.PutUint32(buffer[13:13+4], uint32(numVal))
-						}
-					}
-				}
+	case 5: // error
+		// error (field 5)
+		// error_code (field 1)
+		e.endian.PutUint32(buffer[9:9+4], msg.Payload.Error.ErrorCode)
 
-			case "error":
-				buffer[8] = 5
+		// line_number (field 2)
+		e.endian.PutUint32(buffer[13:13+4], msg.Payload.Error.LineNumber)
 
-				// error (field 5)
-				if errorData, errorOk := payloadData["error"].(map[string]any); errorOk {
-					// error_code (field 1)
-					if v, vOk := errorData["errorCode"]; vOk {
-						if numVal, ok := v.(float64); ok {
-							e.endian.PutUint32(buffer[9:9+4], uint32(numVal))
-						}
-					}
+		// severity (field 3)
+		e.endian.PutUint32(buffer[17:17+4], math.Float32bits(msg.Payload.Error.Severity))
 
-					// line_number (field 2)
-					if v, vOk := errorData["lineNumber"]; vOk {
-						if numVal, ok := v.(float64); ok {
-							e.endian.PutUint32(buffer[13:13+4], uint32(numVal))
-						}
-					}
-
-					// severity (field 3)
-					if v, vOk := errorData["severity"]; vOk {
-						if numVal, ok := v.(float64); ok {
-							e.endian.PutUint32(buffer[17:17+4], math.Float32bits(float32(numVal)))
-						}
-					}
-				}
-
-			default:
-				return nil, fmt.Errorf("invalid oneof variant: %s", key)
-			}
-
-			// ensure the loop only runs once
-			break
-		}
+	default:
+		return nil, fmt.Errorf("oneof payload: unknown discriminator value: %d", msg.Payload.Discriminator)
 	}
 
 	return buffer, nil

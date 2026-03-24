@@ -7,7 +7,7 @@ Comprehensive performance benchmarks for all components of the proto2fixed compi
 - **Hardware**: Apple M3 Max
 - **Architecture**: darwin/arm64
 - **Go Version**: 1.23+
-- **Date**: 2026-03-23
+- **Date**: 2026-03-24
 
 ## Summary
 
@@ -15,21 +15,21 @@ Comprehensive performance benchmarks for all components of the proto2fixed compi
 |-----------|-----------|---------|-----------|-----------|
 | Parser | Simple message | ~59 µs | 55 KB | 580 |
 | Parser | Complex message | ~137 µs | 142 KB | 2,145 |
-| Parser | Large schema (30 fields) | ~190 µs | 243 KB | 3,535 |
-| Parser | Real-world (AHC2) | ~842 µs | 868 KB | 14,357 |
-| Analyzer | Simple layout | ~210 ns | 312 B | 10 |
-| Analyzer | 50 fields | ~1.4 µs | 2.4 KB | 61 |
+| Parser | Large schema (30 fields) | ~201 µs | 243 KB | 3,535 |
+| Parser | Real-world (AHC2) | ~868 µs | 868 KB | 14,357 |
+| Analyzer | Simple layout | ~202 ns | 312 B | 10 |
+| Analyzer | 50 fields | ~1.3 µs | 2.4 KB | 61 |
 | Analyzer | Real-world (AHC2) | ~1.2 µs | 1.6 KB | 50 |
-| Validator | Simple schema | ~55 ns | 48 B | 1 |
-| Validator | Real-world (AHC2) | ~515 ns | 48 B | 1 |
+| Validator | Simple schema | ~53 ns | 48 B | 1 |
+| Validator | Real-world (AHC2) | ~516 ns | 48 B | 1 |
 | JSON Gen | Simple | ~4.6 µs | 3.8 KB | 19 |
 | Arduino Gen | Simple | ~3.5 µs | 7.8 KB | 72 |
-| Go Gen | Simple | ~135 µs | 84 KB | 1,651 |
-| Dynamic Codec | Create (simple) | ~283 ns | 864 B | 9 |
-| Dynamic Codec | Create (union) | ~617 ns | 1.7 KB | 15 |
-| Dynamic Codec | Encode simple | ~854 ns | 952 B | 19 |
-| Dynamic Codec | Decode simple | ~722 ns | 1.0 KB | 16 |
-| CLI | End-to-end | ~19.4 ms | 24 KB | 93 |
+| Go Gen | Simple | ~112 µs | 76 KB | 1,449 |
+| Dynamic Codec | Create (simple) | ~273 ns | 864 B | 9 |
+| Dynamic Codec | Create (union) | ~624 ns | 1.7 KB | 15 |
+| Dynamic Codec | Encode simple | ~837 ns | 952 B | 19 |
+| Dynamic Codec | Decode simple | ~703 ns | 1.0 KB | 16 |
+| CLI | End-to-end | ~20.6 ms | 24 KB | 93 |
 
 ## Detailed Results
 
@@ -38,74 +38,74 @@ Comprehensive performance benchmarks for all components of the proto2fixed compi
 Parsing .proto files using jhump/protoreflect.
 
 ```
-BenchmarkParser_ParseSimpleMessage-16         20,724      59,113 ns/op    55,199 B/op     580 allocs/op
-BenchmarkParser_ParseComplexMessage-16         9,002     137,066 ns/op   141,560 B/op   2,145 allocs/op
-BenchmarkParser_ParseNestedMessages-16        10,000     100,505 ns/op    95,462 B/op   1,390 allocs/op
-BenchmarkParser_ParseEnums-16                 10,000     107,285 ns/op   107,580 B/op   1,507 allocs/op
-BenchmarkParser_ParseLargeSchema-16            6,438     190,214 ns/op   242,946 B/op   3,535 allocs/op
-BenchmarkParser_ParseOneof-16                 13,789      85,433 ns/op   125,464 B/op   1,109 allocs/op
-BenchmarkParser_ParseMultipleOneofs-16         8,853     145,169 ns/op   187,815 B/op   2,196 allocs/op
-BenchmarkParser_ParseWithUnion-16              2,269     550,404 ns/op   564,529 B/op   8,917 allocs/op
-BenchmarkParser_ParseBytesArray-16             2,443     500,463 ns/op   518,169 B/op   8,103 allocs/op
-BenchmarkParser_ParseRealWorldAHC2-16          1,426     842,011 ns/op   868,231 B/op  14,357 allocs/op
-BenchmarkParser_ParseRealWorldAHSR-16          1,683     708,880 ns/op   774,462 B/op  13,387 allocs/op
+BenchmarkParser_ParseSimpleMessage-16     	   20348	     59402 ns/op	   55198 B/op	     580 allocs/op
+BenchmarkParser_ParseComplexMessage-16    	    8972	    137494 ns/op	  141557 B/op	    2145 allocs/op
+BenchmarkParser_ParseNestedMessages-16    	   12303	     94483 ns/op	   95461 B/op	    1390 allocs/op
+BenchmarkParser_ParseEnums-16             	   10000	    102941 ns/op	  107581 B/op	    1507 allocs/op
+BenchmarkParser_ParseLargeSchema-16       	    6082	    200719 ns/op	  242952 B/op	    3535 allocs/op
+BenchmarkParser_ParseOneof-16             	   12979	     92422 ns/op	  125471 B/op	    1109 allocs/op
+BenchmarkParser_ParseMultipleOneofs-16    	    8824	    141751 ns/op	  187827 B/op	    2196 allocs/op
+BenchmarkParser_ParseWithUnion-16         	    2370	    507146 ns/op	  564514 B/op	    8917 allocs/op
+BenchmarkParser_ParseBytesArray-16        	    2698	    456772 ns/op	  518178 B/op	    8103 allocs/op
+BenchmarkParser_ParseRealWorldAHC2-16     	    1407	    868498 ns/op	  868247 B/op	   14357 allocs/op
+BenchmarkParser_ParseRealWorldAHSR-16     	    1473	    774459 ns/op	  774462 B/op	   13387 allocs/op
 ```
 
 **Insights:**
 - Simple message parsing: **~59 µs** (fast enough for interactive use)
 - Scales linearly with schema complexity
-- Real-world schemas: **~709-842 µs** (still well under 1ms)
-- Union and bytes array parsing: **~500-550 µs** (slightly slower due to extension resolution)
+- Real-world schemas: **~774-868 µs** (still well under 1ms)
+- Union and bytes array parsing: **~457-507 µs** (slightly slower due to extension resolution)
 - Most allocations come from protoreflect library (unavoidable)
-- Large schemas (30+ fields): **~190 µs** (well under 1ms)
+- Large schemas (30+ fields): **~201 µs** (well under 1ms)
 
 ### Layout Analyzer Benchmarks
 
 Binary layout calculation with offset and padding.
 
 ```
-BenchmarkLayoutAnalyzer_SimpleMessage-16              5,797,166      209.5 ns/op     312 B/op      10 allocs/op
-BenchmarkLayoutAnalyzer_UnionMessage-16               5,458,611      224.0 ns/op     336 B/op      11 allocs/op
-BenchmarkLayoutAnalyzer_LargeArrays-16                5,719,322      208.0 ns/op     312 B/op      10 allocs/op
-BenchmarkLayoutAnalyzer_ManyFields-16                   914,337    1,365   ns/op   2,416 B/op      61 allocs/op
-BenchmarkLayoutAnalyzer_AlignmentCalculation-16       1,410,384      859.2 ns/op     920 B/op      27 allocs/op
-BenchmarkLayoutAnalyzer_OneofMessage-16               3,828,748      313.0 ns/op     416 B/op      16 allocs/op
-BenchmarkLayoutAnalyzer_MultipleOneofs-16             1,973,133      615.5 ns/op     688 B/op      26 allocs/op
-BenchmarkLayoutAnalyzer_OneofWithNestedMessages-16    1,848,400      650.8 ns/op     880 B/op      30 allocs/op
-BenchmarkLayoutAnalyzer_BytesArrays-16                5,026,473      230.7 ns/op     336 B/op      11 allocs/op
-BenchmarkLayoutAnalyzer_UnionWithNestedMessages-16    3,137,575      379.8 ns/op     568 B/op      18 allocs/op
-BenchmarkLayoutAnalyzer_RealWorldAHC2-16              1,000,000    1,186   ns/op   1,577 B/op      50 allocs/op
-BenchmarkLayoutAnalyzer_RealWorldAHSR-16              1,000,000    1,116   ns/op   1,576 B/op      47 allocs/op
+BenchmarkLayoutAnalyzer_SimpleMessage-16              	 5492671	       201.6 ns/op	     312 B/op	      10 allocs/op
+BenchmarkLayoutAnalyzer_UnionMessage-16               	 5532495	       224.1 ns/op	     336 B/op	      11 allocs/op
+BenchmarkLayoutAnalyzer_LargeArrays-16                	 5883204	       205.3 ns/op	     312 B/op	      10 allocs/op
+BenchmarkLayoutAnalyzer_ManyFields-16                 	  899588	      1341 ns/op	    2416 B/op	      61 allocs/op
+BenchmarkLayoutAnalyzer_AlignmentCalculation-16       	 1412522	       874.7 ns/op	     920 B/op	      27 allocs/op
+BenchmarkLayoutAnalyzer_OneofMessage-16               	 3733105	       310.6 ns/op	     416 B/op	      16 allocs/op
+BenchmarkLayoutAnalyzer_MultipleOneofs-16             	 1964472	       608.8 ns/op	     688 B/op	      26 allocs/op
+BenchmarkLayoutAnalyzer_OneofWithNestedMessages-16    	 1827620	       629.6 ns/op	     880 B/op	      30 allocs/op
+BenchmarkLayoutAnalyzer_BytesArrays-16                	 5269315	       224.8 ns/op	     336 B/op	      11 allocs/op
+BenchmarkLayoutAnalyzer_UnionWithNestedMessages-16    	 3278478	       369.8 ns/op	     568 B/op	      18 allocs/op
+BenchmarkLayoutAnalyzer_RealWorldAHC2-16              	 1000000	      1180 ns/op	    1577 B/op	      50 allocs/op
+BenchmarkLayoutAnalyzer_RealWorldAHSR-16              	 1000000	      1137 ns/op	    1576 B/op	      47 allocs/op
 ```
 
 **Insights:**
 - **Extremely fast**: sub-microsecond for typical messages
-- Simple messages: **~210 ns** (5.7M+ ops/sec)
+- Simple messages: **~202 ns** (5.5M+ ops/sec)
 - Real-world schemas: **~1.1-1.2 µs** (excellent scaling)
 - Scales well: 50 fields still under **1.4 µs**
-- Union messages have negligible overhead (+14 ns)
-- Large arrays don't impact performance (same ~208 ns)
-- Oneof support: **~313-651 ns** depending on complexity
-- Alignment calculation overhead: **~859 ns** for complex cases
+- Union messages have negligible overhead (+22 ns)
+- Large arrays don't impact performance (same ~205 ns)
+- Oneof support: **~311-630 ns** depending on complexity
+- Alignment calculation overhead: **~875 ns** for complex cases
 
 ### Validator Benchmarks
 
 Schema validation with error checking.
 
 ```
-BenchmarkValidator_SimpleSchema-16            22,396,747       54.91 ns/op      48 B/op       1 allocs/op
-BenchmarkValidator_StringAndArrayFields-16    18,504,061       64.87 ns/op      48 B/op       1 allocs/op
-BenchmarkValidator_ManyMessages-16             1,619,452      746.3  ns/op      48 B/op       1 allocs/op
-BenchmarkValidator_RealWorldAHC2-16            2,328,099      514.7  ns/op      48 B/op       1 allocs/op
-BenchmarkValidator_RealWorldAHSR-16            1,615,911      740.4  ns/op     184 B/op       5 allocs/op
+BenchmarkValidator_SimpleSchema-16            	22210071	        53.35 ns/op	      48 B/op	       1 allocs/op
+BenchmarkValidator_StringAndArrayFields-16    	19289102	        62.75 ns/op	      48 B/op	       1 allocs/op
+BenchmarkValidator_ManyMessages-16            	 1710966	       706.6 ns/op	      48 B/op	       1 allocs/op
+BenchmarkValidator_RealWorldAHC2-16           	 2303686	       515.9 ns/op	      48 B/op	       1 allocs/op
+BenchmarkValidator_RealWorldAHSR-16           	 1675962	       737.3 ns/op	     184 B/op	       5 allocs/op
 ```
 
 **Insights:**
-- **Blazingly fast**: **~55 ns** for simple schemas (22M+ validations/sec)
-- String/array validation overhead: only **+10 ns**
-- Real-world validation: **~515-740 ns** (still extremely fast)
+- **Blazingly fast**: **~53 ns** for simple schemas (22M+ validations/sec)
+- String/array validation overhead: only **+9 ns**
+- Real-world validation: **~516-737 ns** (still extremely fast)
 - Minimal allocations (48-184 bytes, 1-5 allocs)
-- Scales to 20 messages in **~746 ns**
+- Scales to 20 messages in **~707 ns**
 - Validation is essentially free compared to parsing
 
 ### Code Generator Benchmarks
@@ -113,103 +113,103 @@ BenchmarkValidator_RealWorldAHSR-16            1,615,911      740.4  ns/op     1
 All three output formats (JSON, Arduino, Go), including Go struct generation.
 
 ```
-BenchmarkJSONGenerator_SimpleSchema-16                  248,568    4,580 ns/op     3,817 B/op      19 allocs/op
-BenchmarkJSONGenerator_LargeSchema-16                    16,737   70,910 ns/op    80,426 B/op     185 allocs/op
-BenchmarkJSONGenerator_Oneof-16                         168,150    7,064 ns/op     5,632 B/op      25 allocs/op
-BenchmarkJSONGenerator_ComplexOneof-16                   83,284   14,129 ns/op    14,537 B/op      44 allocs/op
-BenchmarkJSONGenerator_RealWorldAHC2-16                  32,506   37,314 ns/op    38,986 B/op     104 allocs/op
-BenchmarkJSONGenerator_RealWorldAHSR-16                  50,469   23,646 ns/op    24,474 B/op      70 allocs/op
+BenchmarkJSONGenerator_SimpleSchema-16        	  259310	      4586 ns/op	    3817 B/op	      19 allocs/op
+BenchmarkJSONGenerator_LargeSchema-16         	   16911	     71620 ns/op	   80425 B/op	     185 allocs/op
+BenchmarkJSONGenerator_Oneof-16               	  172735	      6856 ns/op	    5632 B/op	      25 allocs/op
+BenchmarkJSONGenerator_ComplexOneof-16        	   87537	     14917 ns/op	   14538 B/op	      44 allocs/op
+BenchmarkJSONGenerator_RealWorldAHC2-16       	   32174	     37359 ns/op	   38980 B/op	     104 allocs/op
+BenchmarkJSONGenerator_RealWorldAHSR-16       	   48138	     23699 ns/op	   24473 B/op	      70 allocs/op
 
-BenchmarkArduinoGenerator_SimpleSchema-16               349,346    3,522 ns/op     7,758 B/op      72 allocs/op
-BenchmarkArduinoGenerator_LargeSchema-16                 26,942   45,891 ns/op    85,061 B/op     842 allocs/op
-BenchmarkArduinoGenerator_Oneof-16                      289,404    4,197 ns/op     8,151 B/op      89 allocs/op
-BenchmarkArduinoGenerator_ComplexOneof-16               139,832    8,558 ns/op    16,206 B/op     172 allocs/op
-BenchmarkArduinoGenerator_RealWorldAHC2-16               92,863   12,935 ns/op    24,719 B/op     242 allocs/op
-BenchmarkArduinoGenerator_RealWorldAHSR-16               80,174   14,861 ns/op    32,952 B/op     284 allocs/op
+BenchmarkArduinoGenerator_SimpleSchema-16     	  332786	      3460 ns/op	    7759 B/op	      72 allocs/op
+BenchmarkArduinoGenerator_LargeSchema-16      	   26874	     43743 ns/op	   85062 B/op	     842 allocs/op
+BenchmarkArduinoGenerator_Oneof-16            	  299894	      4095 ns/op	    8151 B/op	      89 allocs/op
+BenchmarkArduinoGenerator_ComplexOneof-16     	  128528	      9025 ns/op	   16206 B/op	     172 allocs/op
+BenchmarkArduinoGenerator_RealWorldAHC2-16    	   96362	     12919 ns/op	   24718 B/op	     242 allocs/op
+BenchmarkArduinoGenerator_RealWorldAHSR-16    	   80330	     15829 ns/op	   32952 B/op	     284 allocs/op
 
-BenchmarkGoGenerator_SimpleSchema-16                      8,714  134,946 ns/op    83,926 B/op   1,651 allocs/op
-BenchmarkGoGenerator_LargeSchema-16                         604 1,871,237 ns/op 1,101,117 B/op  20,560 allocs/op
-BenchmarkGoGenerator_BigEndian-16                         8,577  131,791 ns/op    83,417 B/op   1,651 allocs/op
-BenchmarkGoGenerator_Oneof-16                             5,970  195,030 ns/op   121,913 B/op   2,366 allocs/op
-BenchmarkGoGenerator_ComplexOneof-16                      2,930  408,031 ns/op   257,191 B/op   4,670 allocs/op
-BenchmarkGoGenerator_RealWorldAHC2-16                     2,686  442,460 ns/op   267,902 B/op   5,040 allocs/op
-BenchmarkGoGenerator_RealWorldAHSR-16                     3,086  375,264 ns/op   234,415 B/op   4,437 allocs/op
-BenchmarkGoGenerator_Struct_WithEnum-16                   8,274  139,428 ns/op    86,251 B/op   1,730 allocs/op
-BenchmarkGoGenerator_Struct_MixedTypes-16                 6,043  195,347 ns/op   123,298 B/op   2,413 allocs/op
-BenchmarkGoGenerator_Struct_Union-16                      7,429  160,686 ns/op    93,646 B/op   1,972 allocs/op
+BenchmarkGoGenerator_SimpleSchema-16          	    9822	    112374 ns/op	   77506 B/op	    1449 allocs/op
+BenchmarkGoGenerator_LargeSchema-16           	     912	   1307084 ns/op	  822362 B/op	   15697 allocs/op
+BenchmarkGoGenerator_BigEndian-16             	   10000	    112560 ns/op	   77636 B/op	    1449 allocs/op
+BenchmarkGoGenerator_Oneof-16                 	    7467	    157405 ns/op	  110738 B/op	    2014 allocs/op
+BenchmarkGoGenerator_ComplexOneof-16          	    3420	    325336 ns/op	  219323 B/op	    3839 allocs/op
+BenchmarkGoGenerator_RealWorldAHC2-16         	    3234	    344951 ns/op	  225017 B/op	    4069 allocs/op
+BenchmarkGoGenerator_RealWorldAHSR-16         	    3698	    299006 ns/op	  196257 B/op	    3709 allocs/op
+BenchmarkGoGenerator_Struct_WithEnum-16       	    9633	    122236 ns/op	   79937 B/op	    1529 allocs/op
+BenchmarkGoGenerator_Struct_MixedTypes-16     	    7646	    161230 ns/op	   97030 B/op	    2031 allocs/op
+BenchmarkGoGenerator_Struct_Union-16          	    8094	    139854 ns/op	   86099 B/op	    1696 allocs/op
 
-BenchmarkAllGenerators_SimpleSchema-16                    8,697  140,972 ns/op    95,994 B/op   1,743 allocs/op
-BenchmarkAllGenerators_LargeSchema-16                       608 2,017,654 ns/op 1,288,702 B/op  21,601 allocs/op
-BenchmarkAllGenerators_RealWorldAHC2-16                   2,329  504,442 ns/op   333,834 B/op   5,389 allocs/op
-BenchmarkAllGenerators_RealWorldAHSR-16                   2,515  424,515 ns/op   293,565 B/op   4,793 allocs/op
+BenchmarkAllGenerators_SimpleSchema-16        	    9726	    125349 ns/op	   89658 B/op	    1541 allocs/op
+BenchmarkAllGenerators_LargeSchema-16         	     793	   1497862 ns/op	 1007070 B/op	   16735 allocs/op
+BenchmarkAllGenerators_RealWorldAHC2-16       	    2942	    397495 ns/op	  290305 B/op	    4417 allocs/op
+BenchmarkAllGenerators_RealWorldAHSR-16       	    3470	    346283 ns/op	  255297 B/op	    4065 allocs/op
 ```
 
 **Insights:**
 - **JSON generator**: Fastest at **~4.6 µs** (simplest output format)
   - Real-world: **24-37 µs** depending on complexity
 - **Arduino generator**: **~3.5 µs** (efficient string building)
-  - Real-world: **~13-15 µs** (very consistent)
-- **Go generator**: **~135 µs** (most complex, generates decoders/encoders + structs)
-  - Real-world: **~375-442 µs** (still extremely fast)
-  - Struct generation with enum: **~139 µs**
-  - Struct generation with mixed types: **~195 µs**
-  - Struct generation with union: **~161 µs**
-- Large schemas (10 messages, 100 fields): **~2.0 ms** for all 3 generators
+  - Real-world: **~13-16 µs** (very consistent)
+- **Go generator**: **~112 µs** (most complex, generates decoders/encoders + structs)
+  - Real-world: **~299-345 µs** (still extremely fast)
+  - Struct generation with enum: **~122 µs**
+  - Struct generation with mixed types: **~161 µs**
+  - Struct generation with union: **~140 µs**
+- Large schemas (10 messages, 100 fields): **~1.5 ms** for all 3 generators
 - Big-endian has zero overhead vs little-endian
-- All three generators combined: **~141 µs** for simple schema
-- Real-world combined: **~425-504 µs** (suitable for build pipelines)
+- All three generators combined: **~125 µs** for simple schema
+- Real-world combined: **~346-397 µs** (suitable for build pipelines)
 - Oneof support adds **~2-8 µs** overhead per generator
 
 **Relative Performance:**
 - Arduino generator: **1.0x** (fastest for simple schemas)
 - JSON generator: **1.3x**
-- Go generator: **38.3x** (still only ~135 µs)
+- Go generator: **32.5x** (still only ~112 µs)
 
 ### Dynamic Codec Benchmarks
 
 Runtime codec creation and encode/decode from JSON schemas.
 
 ```
-BenchmarkNew_Simple-16               	 4,159,183	       282.6 ns/op	     864 B/op	       9 allocs/op
-BenchmarkNew_Complex-16              	 4,391,912	       290.8 ns/op	     864 B/op	       9 allocs/op
-BenchmarkNew_Union-16                	 1,850,600	       617.0 ns/op	   1,728 B/op	      15 allocs/op
-BenchmarkNew_WithOneof-16            	 2,063,289	       584.7 ns/op	   1,744 B/op	      16 allocs/op
-BenchmarkNew_Nested-16               	 4,247,875	       284.7 ns/op	     864 B/op	       9 allocs/op
+BenchmarkNew_Simple-16               	 4189828	       272.8 ns/op	     864 B/op	       9 allocs/op
+BenchmarkNew_Complex-16              	 4261977	       272.1 ns/op	     864 B/op	       9 allocs/op
+BenchmarkNew_Union-16                	 2003343	       624.2 ns/op	    1728 B/op	      15 allocs/op
+BenchmarkNew_WithOneof-16            	 2104383	       579.4 ns/op	    1744 B/op	      16 allocs/op
+BenchmarkNew_Nested-16               	 4265349	       276.7 ns/op	     864 B/op	       9 allocs/op
 
-BenchmarkEncode_Simple-16            	 1,441,214	       854.2 ns/op	     952 B/op	      19 allocs/op
-BenchmarkEncode_Complex-16           	   718,164	     1,713   ns/op	   1,256 B/op	      31 allocs/op
-BenchmarkEncode_Union-16             	 1,564,518	       764.4 ns/op	     944 B/op	      15 allocs/op
-BenchmarkEncode_WithOneof-16         	   891,585	     1,360   ns/op	   1,384 B/op	      26 allocs/op
-BenchmarkEncode_Nested-16            	   977,526	     1,242   ns/op	   1,360 B/op	      26 allocs/op
-BenchmarkEncode_LargeArrays-16       	    56,366	    20,873   ns/op	   9,632 B/op	      18 allocs/op
-BenchmarkEncode_BigEndian-16         	 1,441,089	       845.9 ns/op	     952 B/op	      19 allocs/op
+BenchmarkEncode_Simple-16            	 1457796	       837.2 ns/op	     952 B/op	      19 allocs/op
+BenchmarkEncode_Complex-16           	  724502	      1662 ns/op	    1256 B/op	      31 allocs/op
+BenchmarkEncode_Union-16             	 1628871	       732.4 ns/op	     944 B/op	      15 allocs/op
+BenchmarkEncode_WithOneof-16         	  946051	      1304 ns/op	    1384 B/op	      26 allocs/op
+BenchmarkEncode_Nested-16            	  993010	      1218 ns/op	    1360 B/op	      26 allocs/op
+BenchmarkEncode_LargeArrays-16       	   58998	     20352 ns/op	    9632 B/op	      18 allocs/op
+BenchmarkEncode_BigEndian-16         	 1404776	       846.9 ns/op	     952 B/op	      19 allocs/op
 
-BenchmarkDecode_Simple-16            	 1,697,232	       722.3 ns/op	   1,028 B/op	      16 allocs/op
-BenchmarkDecode_Complex-16           	   854,002	     1,364   ns/op	   1,569 B/op	      30 allocs/op
-BenchmarkDecode_Union-16             	 2,209,354	       523.5 ns/op	     888 B/op	      12 allocs/op
-BenchmarkDecode_WithOneof-16         	 1,000,000	     1,130   ns/op	   1,561 B/op	      24 allocs/op
-BenchmarkDecode_Nested-16            	 1,000,000	     1,103   ns/op	   1,617 B/op	      24 allocs/op
-BenchmarkDecode_LargeArrays-16       	   839,664	     1,399   ns/op	   2,604 B/op	      18 allocs/op
-BenchmarkDecode_BigEndian-16         	 1,730,928	       707.0 ns/op	   1,028 B/op	      16 allocs/op
+BenchmarkDecode_Simple-16            	 1762506	       703.2 ns/op	    1028 B/op	      16 allocs/op
+BenchmarkDecode_Complex-16           	  906526	      1332 ns/op	    1569 B/op	      30 allocs/op
+BenchmarkDecode_Union-16             	 2316103	       510.5 ns/op	     888 B/op	      12 allocs/op
+BenchmarkDecode_WithOneof-16         	 1000000	      1078 ns/op	    1561 B/op	      24 allocs/op
+BenchmarkDecode_Nested-16            	 1000000	      1060 ns/op	    1617 B/op	      24 allocs/op
+BenchmarkDecode_LargeArrays-16       	  908070	      1356 ns/op	    2604 B/op	      18 allocs/op
+BenchmarkDecode_BigEndian-16         	 1728621	       680.5 ns/op	    1028 B/op	      16 allocs/op
 
-BenchmarkRoundTrip_Simple-16         	   732,228	     1,622   ns/op	   1,985 B/op	      35 allocs/op
-BenchmarkRoundTrip_Complex-16        	   394,250	     3,083   ns/op	   2,826 B/op	      61 allocs/op
-BenchmarkRoundTrip_LargeArrays-16    	    52,129	    22,273   ns/op	  12,266 B/op	      36 allocs/op
+BenchmarkRoundTrip_Simple-16         	  782274	      1582 ns/op	    1985 B/op	      35 allocs/op
+BenchmarkRoundTrip_Complex-16        	  395979	      3039 ns/op	    2826 B/op	      61 allocs/op
+BenchmarkRoundTrip_LargeArrays-16    	   54330	     22294 ns/op	   12267 B/op	      36 allocs/op
 ```
 
 **Insights:**
-- **Codec creation**: **~283 ns** for simple, **~585-617 ns** for union/oneof (4M+ creations/sec)
+- **Codec creation**: **~273 ns** for simple, **~579-624 ns** for union/oneof (4M+ creations/sec)
   - Union/oneof adds lookup map overhead (+2x time, +2x memory)
   - Still extremely fast - suitable for dynamic creation
-- **Encoding**: **~854 ns** for simple messages, **~1.7 µs** for complex
-  - Union encoding: **~764 ns** (faster than regular - O(1) discriminator lookup)
-  - Oneof encoding: **~1.4 µs** (includes discriminator handling)
-- **Decoding**: **~722 ns** for simple messages, **~1.4 µs** for complex
-  - Union decoding: **~524 ns** (37% faster - direct discriminator-based field lookup)
+- **Encoding**: **~837 ns** for simple messages, **~1.7 µs** for complex
+  - Union encoding: **~732 ns** (faster than regular - O(1) discriminator lookup)
+  - Oneof encoding: **~1.3 µs** (includes discriminator handling)
+- **Decoding**: **~703 ns** for simple messages, **~1.3 µs** for complex
+  - Union decoding: **~511 ns** (37% faster - direct discriminator-based field lookup)
   - Oneof decoding: **~1.1 µs** (O(1) variant lookup via discriminator map)
-- **Round-trip**: **~1.6 µs** for simple, **~3.1 µs** for complex
-- Large arrays (1KB): **~21 µs** encode, **~1.4 µs** decode
-- Endianness has minimal impact (~8-15 ns difference)
+- **Round-trip**: **~1.6 µs** for simple, **~3.0 µs** for complex
+- Large arrays (1KB): **~20 µs** encode, **~1.4 µs** decode
+- Endianness has minimal impact (~9-17 ns difference)
 - Union/oneof discriminator maps provide significant performance benefits:
   - **Decode speedup**: 29-37% faster (O(1) vs O(n) field lookup)
   - **Memory overhead**: +2x during codec creation (one-time cost)
@@ -226,44 +226,44 @@ BenchmarkRoundTrip_LargeArrays-16    	    52,129	    22,273   ns/op	  12,266 B/o
 End-to-end command-line tool performance (includes subprocess overhead).
 
 ```
-BenchmarkCLI_BuildBinary-16                12   92,391,243 ns/op     8,184 B/op      35 allocs/op
-BenchmarkCLI_Validate-16                  177    6,196,112 ns/op     9,701 B/op      40 allocs/op
-BenchmarkCLI_GenerateJSON-16              166    6,481,785 ns/op     7,896 B/op      31 allocs/op
-BenchmarkCLI_GenerateArduino-16           178    6,304,129 ns/op     7,928 B/op      31 allocs/op
-BenchmarkCLI_GenerateGo-16               145    6,938,393 ns/op     7,880 B/op      31 allocs/op
-BenchmarkCLI_ComplexSchema-16            177    6,388,522 ns/op     7,928 B/op      31 allocs/op
-BenchmarkCLI_EndToEnd_AllFormats-16       61   19,352,287 ns/op    23,832 B/op      93 allocs/op
+BenchmarkCLI_BuildBinary-16            	      12	  87120931 ns/op	    8184 B/op	      35 allocs/op
+BenchmarkCLI_Validate-16               	     174	   6696566 ns/op	    9689 B/op	      40 allocs/op
+BenchmarkCLI_GenerateJSON-16           	     171	   6659175 ns/op	    7896 B/op	      31 allocs/op
+BenchmarkCLI_GenerateArduino-16        	     154	   6854851 ns/op	    7928 B/op	      31 allocs/op
+BenchmarkCLI_GenerateGo-16             	     160	   6713409 ns/op	    7880 B/op	      31 allocs/op
+BenchmarkCLI_ComplexSchema-16          	     174	   6474417 ns/op	    7928 B/op	      31 allocs/op
+BenchmarkCLI_EndToEnd_AllFormats-16    	      49	  20649007 ns/op	   23832 B/op	      93 allocs/op
 ```
 
 **Insights:**
-- Build time: **~92 ms** (one-time cost)
-- **Single generation**: **~6.2-6.9 ms** (fast enough for build pipelines)
-- Complex schemas: **~6.4 ms** (negligible overhead)
-- All three formats: **~19.4 ms** (3x single format, as expected)
+- Build time: **~87 ms** (one-time cost)
+- **Single generation**: **~6.5-6.9 ms** (fast enough for build pipelines)
+- Complex schemas: **~6.5 ms** (negligible overhead)
+- All three formats: **~20.6 ms** (~3x single format, as expected)
 - Most time is subprocess startup, not actual compilation
 - Suitable for real-time CI/CD pipelines
 
 **Breakdown (simple schema):**
-- Subprocess overhead: ~6.2 ms (constant)
+- Subprocess overhead: ~6.5 ms (constant)
 - Parsing: ~0.059 ms
 - Analysis: ~0.0002 ms
 - Validation: ~0.00005 ms
-- Generation: ~0.004-0.135 ms
+- Generation: ~0.004-0.112 ms
 
 ## Performance Analysis
 
 ### Bottlenecks
 
-1. **Parser (59-842 µs)**: Uses jhump/protoreflect, which is comprehensive but allocates heavily
-2. **Go Generator (135-442 µs)**: Most complex code generation logic; includes struct generation
-3. **CLI subprocess (6.2 ms)**: Process startup dominates end-to-end time
+1. **Parser (59-868 µs)**: Uses jhump/protoreflect, which is comprehensive but allocates heavily
+2. **Go Generator (112-345 µs)**: Most complex code generation logic; includes struct generation
+3. **CLI subprocess (6.5 ms)**: Process startup dominates end-to-end time
 
 ### Strengths
 
-1. **Analyzer (210 ns - 1.2 µs)**: Extremely efficient binary layout calculation
-2. **Validator (55-740 ns)**: Negligible cost for validation
-3. **Dynamic Codec (~283-617 ns creation, ~0.7-1.7 µs encode/decode)**: Enables runtime flexibility with O(1) discriminator lookups
-4. **Generators (3.5-504 µs)**: All very fast, suitable for large schemas
+1. **Analyzer (202 ns - 1.2 µs)**: Extremely efficient binary layout calculation
+2. **Validator (53-737 ns)**: Negligible cost for validation
+3. **Dynamic Codec (~273-624 ns creation, ~0.7-1.7 µs encode/decode)**: Enables runtime flexibility with O(1) discriminator lookups
+4. **Generators (3.5-397 µs)**: All very fast, suitable for large schemas
 5. **Scalability**: Linear scaling with schema size
 6. **Union/Oneof Performance**: Discriminator maps provide 29-37% speedup for decoding
 
@@ -273,26 +273,26 @@ Testing with actual production proto files (AHC2 commands, AHSR status):
 
 | Operation | AHC2 (Complex) | AHSR (Simpler) |
 |-----------|----------------|----------------|
-| Parse | 842 µs | 709 µs |
+| Parse | 868 µs | 774 µs |
 | Analyze | 1.2 µs | 1.1 µs |
-| Validate | 515 ns | 740 ns |
+| Validate | 516 ns | 737 ns |
 | JSON Gen | 37 µs | 24 µs |
-| Arduino Gen | 13 µs | 15 µs |
-| Go Gen | 442 µs | 375 µs |
-| **All Generators** | **504 µs** | **425 µs** |
+| Arduino Gen | 13 µs | 16 µs |
+| Go Gen | 345 µs | 299 µs |
+| **All Generators** | **397 µs** | **346 µs** |
 
-**Total pipeline**: ~1.35 ms (AHC2) / ~1.13 ms (AHSR) - well under the 10ms target
+**Total pipeline**: ~1.27 ms (AHC2) / ~1.12 ms (AHSR) - well under the 10ms target
 
 ### Comparison to Spec Requirements
 
 | Requirement | Target | Actual | Status |
 |-------------|--------|--------|--------|
-| Parse time | < 1 ms | ~59-842 µs | ✅ **1.2-17x faster** |
-| Layout analysis | < 100 µs | ~210 ns - 1.2 µs | ✅ **83-476x faster** |
-| Code generation | < 1 ms | ~3.5-504 µs | ✅ **2-286x faster** |
-| End-to-end | < 10 ms | ~6.2 ms | ✅ **1.6x faster** |
-| Large schemas | < 100 ms | ~190 µs parse + ~2.0 ms gen = 2.2 ms | ✅ **45x faster** |
-| Dynamic codec | < 10 µs | ~1.6-3.1 µs round-trip | ✅ **3-6x faster** |
+| Parse time | < 1 ms | ~59-868 µs | ✅ **1.2-17x faster** |
+| Layout analysis | < 100 µs | ~202 ns - 1.2 µs | ✅ **83-495x faster** |
+| Code generation | < 1 ms | ~3.5-397 µs | ✅ **2.5-286x faster** |
+| End-to-end | < 10 ms | ~6.5 ms | ✅ **1.5x faster** |
+| Large schemas | < 100 ms | ~201 µs parse + ~1.5 ms gen = 1.7 ms | ✅ **59x faster** |
+| Dynamic codec | < 10 µs | ~1.6-3.0 µs round-trip | ✅ **3-6x faster** |
 
 **All performance requirements exceeded by significant margins.**
 
@@ -310,7 +310,7 @@ Testing with actual production proto files (AHC2 commands, AHSR status):
 - **Recommendation**: Not needed - sub-microsecond is sufficient
 
 ### Generators
-- **Current**: 3.5-504 µs
+- **Current**: 3.5-397 µs
 - **Potential**: Buffer pooling (~30% speedup)
 - **Trade-off**: Code complexity vs marginal gains
 - **Recommendation**: Implement if generating thousands of schemas in a loop
