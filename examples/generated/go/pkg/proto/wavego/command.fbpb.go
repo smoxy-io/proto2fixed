@@ -5,7 +5,6 @@ package wavego
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"math"
 )
@@ -23,7 +22,7 @@ const CommandSize = 126
 // CommandMessageId is the size of the message ID
 const CommandMessageId = 1
 
-// CommandDecoder decodes binary data to JSON
+// CommandDecoder decodes binary data to a Command struct
 type CommandDecoder struct {
 	endian binary.ByteOrder
 }
@@ -35,129 +34,105 @@ func NewCommandDecoder() *CommandDecoder {
 	}
 }
 
-// Decode decodes binary data to JSON string
-func (d *CommandDecoder) Decode(data []byte) ([]byte, error) {
+// Decode decodes binary data to a Command struct
+func (d *CommandDecoder) Decode(data []byte) (*Command, error) {
 	if len(data) != CommandSize {
 		return nil, fmt.Errorf("invalid data size: got %d, want %d", len(data), CommandSize)
 	}
 
-	result := make(map[string]any)
+	result := &Command{}
 
 	// id (field 1, offset: 0, size: 4)
-	result["id"] = d.endian.Uint32(data[0 : 0+4])
+	result.Id = d.endian.Uint32(data[0 : 0+4])
 
 	// action (field 2, offset: 4, size: 1)
-	result["action"] = int32(data[4])
+	result.Action = ActionType(data[4])
 
 	// payload (field 3, offset: 5, size: 121)
-	payloadNested := make(map[string]any)
-
 	{
 		payloadNestedData := data[5:126]
 
 		// servo (field 1, offset: 1, size: 16)
-		servoNested := make(map[string]any)
-
 		{
 			servoNestedData := payloadNestedData[1:17]
 
 			// servo_id (field 1, offset: 0, size: 4)
-			servoNested["servoId"] = d.endian.Uint32(servoNestedData[0 : 0+4])
+			result.Payload.Servo.ServoId = d.endian.Uint32(servoNestedData[0 : 0+4])
 
 			// target_position (field 2, offset: 4, size: 4)
-			servoNested["targetPosition"] = math.Float32frombits(d.endian.Uint32(servoNestedData[4 : 4+4]))
+			result.Payload.Servo.TargetPosition = math.Float32frombits(d.endian.Uint32(servoNestedData[4 : 4+4]))
 
 			// speed (field 3, offset: 8, size: 4)
-			servoNested["speed"] = math.Float32frombits(d.endian.Uint32(servoNestedData[8 : 8+4]))
+			result.Payload.Servo.Speed = math.Float32frombits(d.endian.Uint32(servoNestedData[8 : 8+4]))
 
 			// torque_limit (field 4, offset: 12, size: 4)
-			servoNested["torqueLimit"] = math.Float32frombits(d.endian.Uint32(servoNestedData[12 : 12+4]))
+			result.Payload.Servo.TorqueLimit = math.Float32frombits(d.endian.Uint32(servoNestedData[12 : 12+4]))
 		}
 
-		payloadNested["servo"] = servoNested
-
 		// gait (field 2, offset: 1, size: 24)
-		gaitNested := make(map[string]any)
-
 		{
 			gaitNestedData := payloadNestedData[1:25]
 
 			// gait_type (field 1, offset: 0, size: 1)
-			gaitNested["gaitType"] = int32(gaitNestedData[0])
+			result.Payload.Gait.GaitType = GaitType(gaitNestedData[0])
 
 			// speed (field 2, offset: 4, size: 4)
-			gaitNested["speed"] = math.Float32frombits(d.endian.Uint32(gaitNestedData[4 : 4+4]))
+			result.Payload.Gait.Speed = math.Float32frombits(d.endian.Uint32(gaitNestedData[4 : 4+4]))
 
 			// direction (field 3, offset: 8, size: 4)
-			gaitNested["direction"] = math.Float32frombits(d.endian.Uint32(gaitNestedData[8 : 8+4]))
+			result.Payload.Gait.Direction = math.Float32frombits(d.endian.Uint32(gaitNestedData[8 : 8+4]))
 
 			// turn_rate (field 4, offset: 12, size: 4)
-			gaitNested["turnRate"] = math.Float32frombits(d.endian.Uint32(gaitNestedData[12 : 12+4]))
+			result.Payload.Gait.TurnRate = math.Float32frombits(d.endian.Uint32(gaitNestedData[12 : 12+4]))
 
 			// step_height (field 5, offset: 16, size: 4)
-			gaitNested["stepHeight"] = math.Float32frombits(d.endian.Uint32(gaitNestedData[16 : 16+4]))
+			result.Payload.Gait.StepHeight = math.Float32frombits(d.endian.Uint32(gaitNestedData[16 : 16+4]))
 
 			// stride_length (field 6, offset: 20, size: 4)
-			gaitNested["strideLength"] = math.Float32frombits(d.endian.Uint32(gaitNestedData[20 : 20+4]))
+			result.Payload.Gait.StrideLength = math.Float32frombits(d.endian.Uint32(gaitNestedData[20 : 20+4]))
 		}
 
-		payloadNested["gait"] = gaitNested
-
 		// stop (field 3, offset: 1, size: 1)
-		stopNested := make(map[string]any)
-
 		{
 			stopNestedData := payloadNestedData[1:2]
 
 			// emergency (field 1, offset: 0, size: 1)
-			stopNested["emergency"] = stopNestedData[0] != 0
+			result.Payload.Stop.Emergency = stopNestedData[0] != 0
 		}
 
-		payloadNested["stop"] = stopNested
-
 		// calibrate (field 4, offset: 1, size: 16)
-		calibrateNested := make(map[string]any)
-
 		{
 			calibrateNestedData := payloadNestedData[1:17]
 
 			// servo_id (field 1, offset: 0, size: 4)
-			calibrateNested["servoId"] = d.endian.Uint32(calibrateNestedData[0 : 0+4])
+			result.Payload.Calibrate.ServoId = d.endian.Uint32(calibrateNestedData[0 : 0+4])
 
 			// center_position (field 2, offset: 4, size: 4)
-			calibrateNested["centerPosition"] = math.Float32frombits(d.endian.Uint32(calibrateNestedData[4 : 4+4]))
+			result.Payload.Calibrate.CenterPosition = math.Float32frombits(d.endian.Uint32(calibrateNestedData[4 : 4+4]))
 
 			// min_position (field 3, offset: 8, size: 4)
-			calibrateNested["minPosition"] = math.Float32frombits(d.endian.Uint32(calibrateNestedData[8 : 8+4]))
+			result.Payload.Calibrate.MinPosition = math.Float32frombits(d.endian.Uint32(calibrateNestedData[8 : 8+4]))
 
 			// max_position (field 4, offset: 12, size: 4)
-			calibrateNested["maxPosition"] = math.Float32frombits(d.endian.Uint32(calibrateNestedData[12 : 12+4]))
+			result.Payload.Calibrate.MaxPosition = math.Float32frombits(d.endian.Uint32(calibrateNestedData[12 : 12+4]))
 		}
 
-		payloadNested["calibrate"] = calibrateNested
-
 		// config (field 5, offset: 1, size: 120)
-		configNested := make(map[string]any)
-
 		{
 			configNestedData := payloadNestedData[1:121]
 
 			// parameter_name (field 1, offset: 0, size: 64)
-			configNested["parameterName"] = cH.decodeString(configNestedData[0 : 0+64])
+			result.Payload.Config.ParameterName = cH.decodeString(configNestedData[0 : 0+64])
 
 			// parameter_value (field 2, offset: 64, size: 56)
-			configNested["parameterValue"] = cH.decodeString(configNestedData[64 : 64+56])
+			result.Payload.Config.ParameterValue = cH.decodeString(configNestedData[64 : 64+56])
 		}
-
-		payloadNested["config"] = configNested
 	}
 
-	result["payload"] = payloadNested
-
-	return json.Marshal(result)
+	return result, nil
 }
 
-// CommandEncoder encodes JSON to binary data
+// CommandEncoder encodes a Command struct to binary data
 type CommandEncoder struct {
 	endian binary.ByteOrder
 }
@@ -169,168 +144,74 @@ func NewCommandEncoder() *CommandEncoder {
 	}
 }
 
-// Encode encodes JSON string to binary data
-func (e *CommandEncoder) Encode(msg []byte) ([]byte, error) {
-	data := make(map[string]any)
-
-	if err := json.Unmarshal(msg, &data); err != nil {
-		return nil, err
-	}
-
+// Encode encodes a Command struct to binary data
+func (e *CommandEncoder) Encode(msg *Command) ([]byte, error) {
 	buffer := make([]byte, CommandSize)
 
 	// id (field 1)
-	if v, vOk := data["id"]; vOk {
-		if numVal, ok := v.(float64); ok {
-			e.endian.PutUint32(buffer[0:0+4], uint32(numVal))
-		}
-	}
+	e.endian.PutUint32(buffer[0:0+4], msg.Id)
 
 	// action (field 2)
-	if v, vOk := data["action"]; vOk {
-		if numVal, ok := v.(float64); ok {
-			buffer[4] = uint8(numVal)
-		}
-	}
+	buffer[4] = uint8(msg.Action)
 
 	// payload (field 3)
-	if payloadData, payloadOk := data["payload"].(map[string]any); payloadOk {
-		// servo (field 1)
-		if servoData, servoOk := payloadData["servo"].(map[string]any); servoOk {
-			// servo_id (field 1)
-			if v, vOk := servoData["servoId"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[6:6+4], uint32(numVal))
-				}
-			}
+	// servo (field 1)
+	// servo_id (field 1)
+	e.endian.PutUint32(buffer[6:6+4], msg.Payload.Servo.ServoId)
 
-			// target_position (field 2)
-			if v, vOk := servoData["targetPosition"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[10:10+4], math.Float32bits(float32(numVal)))
-				}
-			}
+	// target_position (field 2)
+	e.endian.PutUint32(buffer[10:10+4], math.Float32bits(msg.Payload.Servo.TargetPosition))
 
-			// speed (field 3)
-			if v, vOk := servoData["speed"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[14:14+4], math.Float32bits(float32(numVal)))
-				}
-			}
+	// speed (field 3)
+	e.endian.PutUint32(buffer[14:14+4], math.Float32bits(msg.Payload.Servo.Speed))
 
-			// torque_limit (field 4)
-			if v, vOk := servoData["torqueLimit"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[18:18+4], math.Float32bits(float32(numVal)))
-				}
-			}
-		}
+	// torque_limit (field 4)
+	e.endian.PutUint32(buffer[18:18+4], math.Float32bits(msg.Payload.Servo.TorqueLimit))
 
-		// gait (field 2)
-		if gaitData, gaitOk := payloadData["gait"].(map[string]any); gaitOk {
-			// gait_type (field 1)
-			if v, vOk := gaitData["gaitType"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					buffer[6] = uint8(numVal)
-				}
-			}
+	// gait (field 2)
+	// gait_type (field 1)
+	buffer[6] = uint8(msg.Payload.Gait.GaitType)
 
-			// speed (field 2)
-			if v, vOk := gaitData["speed"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[10:10+4], math.Float32bits(float32(numVal)))
-				}
-			}
+	// speed (field 2)
+	e.endian.PutUint32(buffer[10:10+4], math.Float32bits(msg.Payload.Gait.Speed))
 
-			// direction (field 3)
-			if v, vOk := gaitData["direction"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[14:14+4], math.Float32bits(float32(numVal)))
-				}
-			}
+	// direction (field 3)
+	e.endian.PutUint32(buffer[14:14+4], math.Float32bits(msg.Payload.Gait.Direction))
 
-			// turn_rate (field 4)
-			if v, vOk := gaitData["turnRate"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[18:18+4], math.Float32bits(float32(numVal)))
-				}
-			}
+	// turn_rate (field 4)
+	e.endian.PutUint32(buffer[18:18+4], math.Float32bits(msg.Payload.Gait.TurnRate))
 
-			// step_height (field 5)
-			if v, vOk := gaitData["stepHeight"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[22:22+4], math.Float32bits(float32(numVal)))
-				}
-			}
+	// step_height (field 5)
+	e.endian.PutUint32(buffer[22:22+4], math.Float32bits(msg.Payload.Gait.StepHeight))
 
-			// stride_length (field 6)
-			if v, vOk := gaitData["strideLength"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[26:26+4], math.Float32bits(float32(numVal)))
-				}
-			}
-		}
+	// stride_length (field 6)
+	e.endian.PutUint32(buffer[26:26+4], math.Float32bits(msg.Payload.Gait.StrideLength))
 
-		// stop (field 3)
-		if stopData, stopOk := payloadData["stop"].(map[string]any); stopOk {
-			// emergency (field 1)
-			if v, vOk := stopData["emergency"]; vOk {
-				if boolVal, ok := v.(bool); ok {
-					if boolVal {
-						buffer[6] = 1
-					}
-				}
-			}
-		}
-
-		// calibrate (field 4)
-		if calibrateData, calibrateOk := payloadData["calibrate"].(map[string]any); calibrateOk {
-			// servo_id (field 1)
-			if v, vOk := calibrateData["servoId"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[6:6+4], uint32(numVal))
-				}
-			}
-
-			// center_position (field 2)
-			if v, vOk := calibrateData["centerPosition"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[10:10+4], math.Float32bits(float32(numVal)))
-				}
-			}
-
-			// min_position (field 3)
-			if v, vOk := calibrateData["minPosition"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[14:14+4], math.Float32bits(float32(numVal)))
-				}
-			}
-
-			// max_position (field 4)
-			if v, vOk := calibrateData["maxPosition"]; vOk {
-				if numVal, ok := v.(float64); ok {
-					e.endian.PutUint32(buffer[18:18+4], math.Float32bits(float32(numVal)))
-				}
-			}
-		}
-
-		// config (field 5)
-		if configData, configOk := payloadData["config"].(map[string]any); configOk {
-			// parameter_name (field 1)
-			if v, vOk := configData["parameterName"]; vOk {
-				if strVal, ok := v.(string); ok {
-					copy(buffer[6:6+64], cH.encodeString(strVal, 64))
-				}
-			}
-
-			// parameter_value (field 2)
-			if v, vOk := configData["parameterValue"]; vOk {
-				if strVal, ok := v.(string); ok {
-					copy(buffer[70:70+56], cH.encodeString(strVal, 56))
-				}
-			}
-		}
+	// stop (field 3)
+	// emergency (field 1)
+	if msg.Payload.Stop.Emergency {
+		buffer[6] = 1
 	}
+
+	// calibrate (field 4)
+	// servo_id (field 1)
+	e.endian.PutUint32(buffer[6:6+4], msg.Payload.Calibrate.ServoId)
+
+	// center_position (field 2)
+	e.endian.PutUint32(buffer[10:10+4], math.Float32bits(msg.Payload.Calibrate.CenterPosition))
+
+	// min_position (field 3)
+	e.endian.PutUint32(buffer[14:14+4], math.Float32bits(msg.Payload.Calibrate.MinPosition))
+
+	// max_position (field 4)
+	e.endian.PutUint32(buffer[18:18+4], math.Float32bits(msg.Payload.Calibrate.MaxPosition))
+
+	// config (field 5)
+	// parameter_name (field 1)
+	copy(buffer[6:6+64], cH.encodeString(msg.Payload.Config.ParameterName, 64))
+
+	// parameter_value (field 2)
+	copy(buffer[70:70+56], cH.encodeString(msg.Payload.Config.ParameterValue, 56))
 
 	return buffer, nil
 }

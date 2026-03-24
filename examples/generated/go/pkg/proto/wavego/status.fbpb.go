@@ -5,7 +5,6 @@ package wavego
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"math"
 )
@@ -23,7 +22,7 @@ const StatusReportSize = 378
 // StatusReportMessageId is the size of the message ID
 const StatusReportMessageId = 1
 
-// StatusReportDecoder decodes binary data to JSON
+// StatusReportDecoder decodes binary data to a StatusReport struct
 type StatusReportDecoder struct {
 	endian binary.ByteOrder
 }
@@ -35,125 +34,110 @@ func NewStatusReportDecoder() *StatusReportDecoder {
 	}
 }
 
-// Decode decodes binary data to JSON string
-func (d *StatusReportDecoder) Decode(data []byte) ([]byte, error) {
+// Decode decodes binary data to a StatusReport struct
+func (d *StatusReportDecoder) Decode(data []byte) (*StatusReport, error) {
 	if len(data) != StatusReportSize {
 		return nil, fmt.Errorf("invalid data size: got %d, want %d", len(data), StatusReportSize)
 	}
 
-	result := make(map[string]any)
+	result := &StatusReport{}
 
 	// timestamp (field 1, offset: 0, size: 4)
-	result["timestamp"] = d.endian.Uint32(data[0 : 0+4])
+	result.Timestamp = d.endian.Uint32(data[0 : 0+4])
 
 	// servos array (field 2, offset: 4, count: 12, elementSize: 26)
-	servosArr := make([]map[string]any, 12)
-
 	for i := 0; i < 12; i++ {
-		elem := make(map[string]any)
-
 		// position (field 1, offset: 0, size: 4)
-		elem["position"] = math.Float32frombits(d.endian.Uint32(data[0 : 0+4]))
+		result.Servos[i].Position = math.Float32frombits(d.endian.Uint32(data[0 : 0+4]))
 
 		// target_position (field 2, offset: 4, size: 4)
-		elem["targetPosition"] = math.Float32frombits(d.endian.Uint32(data[4 : 4+4]))
+		result.Servos[i].TargetPosition = math.Float32frombits(d.endian.Uint32(data[4 : 4+4]))
 
 		// speed (field 3, offset: 8, size: 4)
-		elem["speed"] = math.Float32frombits(d.endian.Uint32(data[8 : 8+4]))
+		result.Servos[i].Speed = math.Float32frombits(d.endian.Uint32(data[8 : 8+4]))
 
 		// load (field 4, offset: 12, size: 4)
-		elem["load"] = math.Float32frombits(d.endian.Uint32(data[12 : 12+4]))
+		result.Servos[i].Load = math.Float32frombits(d.endian.Uint32(data[12 : 12+4]))
 
 		// voltage (field 5, offset: 16, size: 4)
-		elem["voltage"] = math.Float32frombits(d.endian.Uint32(data[16 : 16+4]))
+		result.Servos[i].Voltage = math.Float32frombits(d.endian.Uint32(data[16 : 16+4]))
 
 		// temperature (field 6, offset: 20, size: 4)
-		elem["temperature"] = math.Float32frombits(d.endian.Uint32(data[20 : 20+4]))
+		result.Servos[i].Temperature = math.Float32frombits(d.endian.Uint32(data[20 : 20+4]))
 
 		// moving (field 7, offset: 24, size: 1)
-		elem["moving"] = data[24] != 0
+		result.Servos[i].Moving = data[24] != 0
 
 		// enabled (field 8, offset: 25, size: 1)
-		elem["enabled"] = data[25] != 0
+		result.Servos[i].Enabled = data[25] != 0
 
-		servosArr[i] = elem
 	}
 
-	result["servos"] = servosArr
-
 	// imu (field 3, offset: 316, size: 40)
-	imuNested := make(map[string]any)
-
 	{
 		imuNestedData := data[316:356]
 
 		// accel_x (field 1, offset: 0, size: 4)
-		imuNested["accelX"] = math.Float32frombits(d.endian.Uint32(imuNestedData[0 : 0+4]))
+		result.Imu.AccelX = math.Float32frombits(d.endian.Uint32(imuNestedData[0 : 0+4]))
 
 		// accel_y (field 2, offset: 4, size: 4)
-		imuNested["accelY"] = math.Float32frombits(d.endian.Uint32(imuNestedData[4 : 4+4]))
+		result.Imu.AccelY = math.Float32frombits(d.endian.Uint32(imuNestedData[4 : 4+4]))
 
 		// accel_z (field 3, offset: 8, size: 4)
-		imuNested["accelZ"] = math.Float32frombits(d.endian.Uint32(imuNestedData[8 : 8+4]))
+		result.Imu.AccelZ = math.Float32frombits(d.endian.Uint32(imuNestedData[8 : 8+4]))
 
 		// gyro_x (field 4, offset: 12, size: 4)
-		imuNested["gyroX"] = math.Float32frombits(d.endian.Uint32(imuNestedData[12 : 12+4]))
+		result.Imu.GyroX = math.Float32frombits(d.endian.Uint32(imuNestedData[12 : 12+4]))
 
 		// gyro_y (field 5, offset: 16, size: 4)
-		imuNested["gyroY"] = math.Float32frombits(d.endian.Uint32(imuNestedData[16 : 16+4]))
+		result.Imu.GyroY = math.Float32frombits(d.endian.Uint32(imuNestedData[16 : 16+4]))
 
 		// gyro_z (field 6, offset: 20, size: 4)
-		imuNested["gyroZ"] = math.Float32frombits(d.endian.Uint32(imuNestedData[20 : 20+4]))
+		result.Imu.GyroZ = math.Float32frombits(d.endian.Uint32(imuNestedData[20 : 20+4]))
 
 		// temperature (field 7, offset: 24, size: 4)
-		imuNested["temperature"] = math.Float32frombits(d.endian.Uint32(imuNestedData[24 : 24+4]))
+		result.Imu.Temperature = math.Float32frombits(d.endian.Uint32(imuNestedData[24 : 24+4]))
 
 		// pitch (field 8, offset: 28, size: 4)
-		imuNested["pitch"] = math.Float32frombits(d.endian.Uint32(imuNestedData[28 : 28+4]))
+		result.Imu.Pitch = math.Float32frombits(d.endian.Uint32(imuNestedData[28 : 28+4]))
 
 		// roll (field 9, offset: 32, size: 4)
-		imuNested["roll"] = math.Float32frombits(d.endian.Uint32(imuNestedData[32 : 32+4]))
+		result.Imu.Roll = math.Float32frombits(d.endian.Uint32(imuNestedData[32 : 32+4]))
 
 		// yaw (field 10, offset: 36, size: 4)
-		imuNested["yaw"] = math.Float32frombits(d.endian.Uint32(imuNestedData[36 : 36+4]))
+		result.Imu.Yaw = math.Float32frombits(d.endian.Uint32(imuNestedData[36 : 36+4]))
 	}
 
-	result["imu"] = imuNested
-
 	// battery (field 4, offset: 356, size: 22)
-	batteryNested := make(map[string]any)
-
 	{
 		batteryNestedData := data[356:378]
 
 		// voltage (field 1, offset: 0, size: 4)
-		batteryNested["voltage"] = math.Float32frombits(d.endian.Uint32(batteryNestedData[0 : 0+4]))
+		result.Battery.Voltage = math.Float32frombits(d.endian.Uint32(batteryNestedData[0 : 0+4]))
 
 		// current (field 2, offset: 4, size: 4)
-		batteryNested["current"] = math.Float32frombits(d.endian.Uint32(batteryNestedData[4 : 4+4]))
+		result.Battery.Current = math.Float32frombits(d.endian.Uint32(batteryNestedData[4 : 4+4]))
 
 		// percentage (field 3, offset: 8, size: 4)
-		batteryNested["percentage"] = math.Float32frombits(d.endian.Uint32(batteryNestedData[8 : 8+4]))
+		result.Battery.Percentage = math.Float32frombits(d.endian.Uint32(batteryNestedData[8 : 8+4]))
 
 		// temperature (field 4, offset: 12, size: 4)
-		batteryNested["temperature"] = math.Float32frombits(d.endian.Uint32(batteryNestedData[12 : 12+4]))
+		result.Battery.Temperature = math.Float32frombits(d.endian.Uint32(batteryNestedData[12 : 12+4]))
 
 		// charge_cycles (field 5, offset: 16, size: 4)
-		batteryNested["chargeCycles"] = d.endian.Uint32(batteryNestedData[16 : 16+4])
+		result.Battery.ChargeCycles = d.endian.Uint32(batteryNestedData[16 : 16+4])
 
 		// charging (field 6, offset: 20, size: 1)
-		batteryNested["charging"] = batteryNestedData[20] != 0
+		result.Battery.Charging = batteryNestedData[20] != 0
 
 		// fault (field 7, offset: 21, size: 1)
-		batteryNested["fault"] = batteryNestedData[21] != 0
+		result.Battery.Fault = batteryNestedData[21] != 0
 	}
 
-	result["battery"] = batteryNested
-
-	return json.Marshal(result)
+	return result, nil
 }
 
-// StatusReportEncoder encodes JSON to binary data
+// StatusReportEncoder encodes a StatusReport struct to binary data
 type StatusReportEncoder struct {
 	endian binary.ByteOrder
 }
@@ -165,221 +149,101 @@ func NewStatusReportEncoder() *StatusReportEncoder {
 	}
 }
 
-// Encode encodes JSON string to binary data
-func (e *StatusReportEncoder) Encode(msg []byte) ([]byte, error) {
-	data := make(map[string]any)
-
-	if err := json.Unmarshal(msg, &data); err != nil {
-		return nil, err
-	}
-
+// Encode encodes a StatusReport struct to binary data
+func (e *StatusReportEncoder) Encode(msg *StatusReport) ([]byte, error) {
 	buffer := make([]byte, StatusReportSize)
 
 	// timestamp (field 1)
-	if v, vOk := data["timestamp"]; vOk {
-		if numVal, ok := v.(float64); ok {
-			e.endian.PutUint32(buffer[0:0+4], uint32(numVal))
+	e.endian.PutUint32(buffer[0:0+4], msg.Timestamp)
+
+	// servos (field 2)
+	for i := range msg.Servos {
+		elemBase := 4 + (i * 26)
+
+		// position
+		e.endian.PutUint32(buffer[elemBase+0:elemBase+0+4], math.Float32bits(msg.Servos[i].Position))
+
+		// target_position
+		e.endian.PutUint32(buffer[elemBase+4:elemBase+4+4], math.Float32bits(msg.Servos[i].TargetPosition))
+
+		// speed
+		e.endian.PutUint32(buffer[elemBase+8:elemBase+8+4], math.Float32bits(msg.Servos[i].Speed))
+
+		// load
+		e.endian.PutUint32(buffer[elemBase+12:elemBase+12+4], math.Float32bits(msg.Servos[i].Load))
+
+		// voltage
+		e.endian.PutUint32(buffer[elemBase+16:elemBase+16+4], math.Float32bits(msg.Servos[i].Voltage))
+
+		// temperature
+		e.endian.PutUint32(buffer[elemBase+20:elemBase+20+4], math.Float32bits(msg.Servos[i].Temperature))
+
+		// moving
+		if msg.Servos[i].Moving {
+			buffer[elemBase+24] = 1
 		}
-	}
 
-	// servos (field 2, size 12, array)
-	if servosData, servosOk := data["servos"].([]any); servosOk {
-		for i, elem := range servosData {
-			if i >= 12 {
-				break
-			}
-
-			if servosElemMap, servosElemMapOk := elem.(map[string]any); servosElemMapOk {
-				// position (field 1)
-				if v, vOk := servosElemMap["position"]; vOk {
-					if numVal, ok := v.(float64); ok {
-						e.endian.PutUint32(buffer[0:0+4], math.Float32bits(float32(numVal)))
-					}
-				}
-
-				// target_position (field 2)
-				if v, vOk := servosElemMap["targetPosition"]; vOk {
-					if numVal, ok := v.(float64); ok {
-						e.endian.PutUint32(buffer[4:4+4], math.Float32bits(float32(numVal)))
-					}
-				}
-
-				// speed (field 3)
-				if v, vOk := servosElemMap["speed"]; vOk {
-					if numVal, ok := v.(float64); ok {
-						e.endian.PutUint32(buffer[8:8+4], math.Float32bits(float32(numVal)))
-					}
-				}
-
-				// load (field 4)
-				if v, vOk := servosElemMap["load"]; vOk {
-					if numVal, ok := v.(float64); ok {
-						e.endian.PutUint32(buffer[12:12+4], math.Float32bits(float32(numVal)))
-					}
-				}
-
-				// voltage (field 5)
-				if v, vOk := servosElemMap["voltage"]; vOk {
-					if numVal, ok := v.(float64); ok {
-						e.endian.PutUint32(buffer[16:16+4], math.Float32bits(float32(numVal)))
-					}
-				}
-
-				// temperature (field 6)
-				if v, vOk := servosElemMap["temperature"]; vOk {
-					if numVal, ok := v.(float64); ok {
-						e.endian.PutUint32(buffer[20:20+4], math.Float32bits(float32(numVal)))
-					}
-				}
-
-				// moving (field 7)
-				if v, vOk := servosElemMap["moving"]; vOk {
-					if boolVal, ok := v.(bool); ok {
-						if boolVal {
-							buffer[24] = 1
-						}
-					}
-				}
-
-				// enabled (field 8)
-				if v, vOk := servosElemMap["enabled"]; vOk {
-					if boolVal, ok := v.(bool); ok {
-						if boolVal {
-							buffer[25] = 1
-						}
-					}
-				}
-			}
+		// enabled
+		if msg.Servos[i].Enabled {
+			buffer[elemBase+25] = 1
 		}
 	}
 
 	// imu (field 3)
-	if imuData, imuOk := data["imu"].(map[string]any); imuOk {
-		// accel_x (field 1)
-		if v, vOk := imuData["accelX"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[316:316+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// accel_x (field 1)
+	e.endian.PutUint32(buffer[316:316+4], math.Float32bits(msg.Imu.AccelX))
 
-		// accel_y (field 2)
-		if v, vOk := imuData["accelY"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[320:320+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// accel_y (field 2)
+	e.endian.PutUint32(buffer[320:320+4], math.Float32bits(msg.Imu.AccelY))
 
-		// accel_z (field 3)
-		if v, vOk := imuData["accelZ"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[324:324+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// accel_z (field 3)
+	e.endian.PutUint32(buffer[324:324+4], math.Float32bits(msg.Imu.AccelZ))
 
-		// gyro_x (field 4)
-		if v, vOk := imuData["gyroX"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[328:328+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// gyro_x (field 4)
+	e.endian.PutUint32(buffer[328:328+4], math.Float32bits(msg.Imu.GyroX))
 
-		// gyro_y (field 5)
-		if v, vOk := imuData["gyroY"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[332:332+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// gyro_y (field 5)
+	e.endian.PutUint32(buffer[332:332+4], math.Float32bits(msg.Imu.GyroY))
 
-		// gyro_z (field 6)
-		if v, vOk := imuData["gyroZ"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[336:336+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// gyro_z (field 6)
+	e.endian.PutUint32(buffer[336:336+4], math.Float32bits(msg.Imu.GyroZ))
 
-		// temperature (field 7)
-		if v, vOk := imuData["temperature"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[340:340+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// temperature (field 7)
+	e.endian.PutUint32(buffer[340:340+4], math.Float32bits(msg.Imu.Temperature))
 
-		// pitch (field 8)
-		if v, vOk := imuData["pitch"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[344:344+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// pitch (field 8)
+	e.endian.PutUint32(buffer[344:344+4], math.Float32bits(msg.Imu.Pitch))
 
-		// roll (field 9)
-		if v, vOk := imuData["roll"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[348:348+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// roll (field 9)
+	e.endian.PutUint32(buffer[348:348+4], math.Float32bits(msg.Imu.Roll))
 
-		// yaw (field 10)
-		if v, vOk := imuData["yaw"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[352:352+4], math.Float32bits(float32(numVal)))
-			}
-		}
-	}
+	// yaw (field 10)
+	e.endian.PutUint32(buffer[352:352+4], math.Float32bits(msg.Imu.Yaw))
 
 	// battery (field 4)
-	if batteryData, batteryOk := data["battery"].(map[string]any); batteryOk {
-		// voltage (field 1)
-		if v, vOk := batteryData["voltage"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[356:356+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// voltage (field 1)
+	e.endian.PutUint32(buffer[356:356+4], math.Float32bits(msg.Battery.Voltage))
 
-		// current (field 2)
-		if v, vOk := batteryData["current"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[360:360+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// current (field 2)
+	e.endian.PutUint32(buffer[360:360+4], math.Float32bits(msg.Battery.Current))
 
-		// percentage (field 3)
-		if v, vOk := batteryData["percentage"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[364:364+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// percentage (field 3)
+	e.endian.PutUint32(buffer[364:364+4], math.Float32bits(msg.Battery.Percentage))
 
-		// temperature (field 4)
-		if v, vOk := batteryData["temperature"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[368:368+4], math.Float32bits(float32(numVal)))
-			}
-		}
+	// temperature (field 4)
+	e.endian.PutUint32(buffer[368:368+4], math.Float32bits(msg.Battery.Temperature))
 
-		// charge_cycles (field 5)
-		if v, vOk := batteryData["chargeCycles"]; vOk {
-			if numVal, ok := v.(float64); ok {
-				e.endian.PutUint32(buffer[372:372+4], uint32(numVal))
-			}
-		}
+	// charge_cycles (field 5)
+	e.endian.PutUint32(buffer[372:372+4], msg.Battery.ChargeCycles)
 
-		// charging (field 6)
-		if v, vOk := batteryData["charging"]; vOk {
-			if boolVal, ok := v.(bool); ok {
-				if boolVal {
-					buffer[376] = 1
-				}
-			}
-		}
+	// charging (field 6)
+	if msg.Battery.Charging {
+		buffer[376] = 1
+	}
 
-		// fault (field 7)
-		if v, vOk := batteryData["fault"]; vOk {
-			if boolVal, ok := v.(bool); ok {
-				if boolVal {
-					buffer[377] = 1
-				}
-			}
-		}
+	// fault (field 7)
+	if msg.Battery.Fault {
+		buffer[377] = 1
 	}
 
 	return buffer, nil

@@ -60,7 +60,6 @@ func (g *GoGenerator) Generate(schema *parser.Schema, layouts map[string]*analyz
 	sb.WriteString(fmt.Sprintf("package %s\n\n", schema.GoPackage))
 	sb.WriteString("import (\n")
 	sb.WriteString("\t\"encoding/binary\"\n")
-	sb.WriteString("\t\"encoding/json\"\n")
 	sb.WriteString("\t\"fmt\"\n")
 
 	if schema.HasType(parser.TypeFloat, parser.TypeDouble) {
@@ -150,7 +149,7 @@ func (g *GoGenerator) Generate(schema *parser.Schema, layouts map[string]*analyz
 func (g *GoGenerator) generateDecoder(sb *strings.Builder, msg *parser.Message, layout *analyzer.MessageLayout, layouts map[string]*analyzer.MessageLayout, byteOrder string) {
 	decoderName := fmt.Sprintf("%sDecoder", msg.Name)
 
-	sb.WriteString(fmt.Sprintf("// %s decodes binary data to JSON\n", decoderName))
+	sb.WriteString(fmt.Sprintf("// %s decodes binary data to a %s struct\n", decoderName, msg.Name))
 	sb.WriteString(fmt.Sprintf("type %s struct {\n", decoderName))
 	sb.WriteString("\tendian binary.ByteOrder\n")
 	sb.WriteString("}\n\n")
@@ -163,33 +162,29 @@ func (g *GoGenerator) generateDecoder(sb *strings.Builder, msg *parser.Message, 
 	sb.WriteString("}\n\n")
 
 	// Decode method
-	sb.WriteString(fmt.Sprintf("// Decode decodes binary data to JSON string\n"))
-	sb.WriteString(fmt.Sprintf("func (d *%s) Decode(data []byte) ([]byte, error) {\n", decoderName))
+	sb.WriteString(fmt.Sprintf("// Decode decodes binary data to a %s struct\n", msg.Name))
+	sb.WriteString(fmt.Sprintf("func (d *%s) Decode(data []byte) (*%s, error) {\n", decoderName, msg.Name))
 	sb.WriteString(fmt.Sprintf("\tif len(data) != %s {\n", g.constants[msg.Name+"Size"]))
 	sb.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"invalid data size: got %%d, want %%d\", len(data), %s)\n", g.constants[msg.Name+"Size"]))
 	sb.WriteString("\t}\n\n")
-	sb.WriteString("\tresult := make(map[string]any)\n")
+	sb.WriteString(fmt.Sprintf("\tresult := &%s{}\n", msg.Name))
 
 	// Handle union discriminator
 	if msg.Union && layout.HasDiscriminator {
 		sb.WriteString("\n\t// Union discriminator\n")
-		sb.WriteString(fmt.Sprintf("\tdiscriminator := data[%d]\n\n", layout.DiscriminatorOffset))
-
-		// Generate switch for each field
-		sb.WriteString("\tswitch discriminator {\n")
-		sb.WriteString("\tcase 0:\t\t// No field set. skip\n")
-		sb.WriteString("\t\tbreak\n\n")
+		sb.WriteString(fmt.Sprintf("\tresult.Discriminator = data[%d]\n\n", layout.DiscriminatorOffset))
+		sb.WriteString("\tswitch result.Discriminator {\n")
+		sb.WriteString("\tcase 0:\n")
 
 		for _, fieldLayout := range layout.Fields {
 			sb.WriteString(fmt.Sprintf("\tcase %d:\t\t// %s\n", fieldLayout.Field.Number, fieldLayout.Field.Name))
-
 			g.generateFieldDecoder(sb, fieldLayout, layouts, "data", "result", 0)
 		}
 
 		sb.WriteString("\tdefault:\n")
-		sb.WriteString("\t\treturn nil, fmt.Errorf(\"unknown discriminator value: %d\", discriminator)\n")
+		sb.WriteString("\t\treturn nil, fmt.Errorf(\"unknown discriminator value: %d\", result.Discriminator)\n")
 		sb.WriteString("\t}\n\n")
-		sb.WriteString("\treturn json.Marshal(result)\n")
+		sb.WriteString("\treturn result, nil\n")
 		sb.WriteString("}\n\n")
 
 		return
@@ -203,41 +198,34 @@ func (g *GoGenerator) generateDecoder(sb *strings.Builder, msg *parser.Message, 
 
 	// Decode oneofs
 	for _, oneofLayout := range layout.Oneofs {
-		sb.WriteString(fmt.Sprintf("\n\t// Oneof %s (offset: %d, size: %d)\n",
-			oneofLayout.Oneof.Name, oneofLayout.Offset, oneofLayout.Size))
-		sb.WriteString(fmt.Sprintf("\tdiscriminator := data[%d]\n", oneofLayout.DiscriminatorOffset))
-		sb.WriteString(fmt.Sprintf("\t%sOneof := make(map[string]any)\n\n", oneofLayout.Oneof.Name))
-		sb.WriteString("\tswitch discriminator {\n")
-		sb.WriteString("\tcase 0:\t\t// No field set. skip\n")
-		sb.WriteString("\t\tbreak\n\n")
+		oneofFieldName := toPascalCase(oneofLayout.Oneof.Name)
+
+		sb.WriteString(fmt.Sprintf("\n\t// Oneof %s\n", oneofLayout.Oneof.Name))
+		sb.WriteString(fmt.Sprintf("\tresult.%s.Discriminator = data[%d]\n\n", oneofFieldName, oneofLayout.DiscriminatorOffset))
+		sb.WriteString(fmt.Sprintf("\tswitch result.%s.Discriminator {\n", oneofFieldName))
+		sb.WriteString("\tcase 0:\n")
 
 		for _, variantLayout := range oneofLayout.Fields {
 			sb.WriteString(fmt.Sprintf("\tcase %d:\t\t// %s\n", variantLayout.Field.Number, variantLayout.Field.Name))
-
-			g.generateFieldDecoder(sb, variantLayout, layouts, "data", oneofLayout.Oneof.Name+"Oneof", 1)
-
+			g.generateFieldDecoder(sb, variantLayout, layouts, "data", fmt.Sprintf("result.%s", oneofFieldName), 1)
 			sb.WriteString("\n")
 		}
 
 		sb.WriteString("\tdefault:\n")
-		sb.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"oneof %s: unknown discriminator value: %%d\", discriminator)\n", oneofLayout.Oneof.Name))
-		sb.WriteString("\t}\n\n")
-
-		oneofName := toCamelCase(oneofLayout.Oneof.Name)
-
-		sb.WriteString(fmt.Sprintf("\tresult[\"%s\"] = %sOneof\n", oneofName, oneofLayout.Oneof.Name))
+		sb.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"oneof %s: unknown discriminator value: %%d\", result.%s.Discriminator)\n", oneofLayout.Oneof.Name, oneofFieldName))
+		sb.WriteString("\t}\n")
 	}
 
-	sb.WriteString("\n\treturn json.Marshal(result)\n")
+	sb.WriteString("\n\treturn result, nil\n")
 	sb.WriteString("}\n\n")
 }
 
-func (g *GoGenerator) generateFieldDecoder(sb *strings.Builder, fieldLayout *analyzer.FieldLayout, layouts map[string]*analyzer.MessageLayout, dataVar, resultVar string, depth int) {
+func (g *GoGenerator) generateFieldDecoder(sb *strings.Builder, fieldLayout *analyzer.FieldLayout, layouts map[string]*analyzer.MessageLayout, dataVar, structPath string, depth int) {
 	baseIndent := strings.Repeat("\t", depth)
 
 	field := fieldLayout.Field
 	offset := fieldLayout.Offset
-	fieldName := toCamelCase(field.Name)
+	fieldPath := structPath + "." + toPascalCase(field.Name)
 
 	if field.Repeated && field.Type == parser.TypeMessage && field.MessageType != nil {
 		// Array of messages
@@ -245,42 +233,35 @@ func (g *GoGenerator) generateFieldDecoder(sb *strings.Builder, fieldLayout *ana
 
 		sb.WriteString(baseIndent + fmt.Sprintf("\t// %s array (field %d, offset: %d, count: %d, elementSize: %d)\n",
 			field.Name, field.Number, offset, field.ArraySize, elemSize))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t%sArr := make([]map[string]any, %d)\n\n", field.Name, field.ArraySize))
 		sb.WriteString(baseIndent + fmt.Sprintf("\tfor i := 0; i < %d; i++ {\n", field.ArraySize))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\telem := make(map[string]any)\n\n"))
 
 		nestedLayout := layouts[field.MessageType.Name]
 
 		for _, nestedField := range nestedLayout.Fields {
-			g.generateFieldDecoder(sb, nestedField, layouts, dataVar, "elem", depth+1)
+			g.generateFieldDecoder(sb, nestedField, layouts, dataVar, fieldPath+"[i]", depth+1)
 			sb.WriteString("\n")
 		}
 
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\t%sArr[i] = elem\n", field.Name))
-		sb.WriteString(baseIndent + "\t}\n\n")
-		sb.WriteString(baseIndent + fmt.Sprintf("\t%s[\"%s\"] = %sArr\n", resultVar, fieldName, field.Name))
+		sb.WriteString(baseIndent + "\t}\n")
 	} else if field.Repeated {
 		// Array of primitives
 		elemSize := fieldLayout.Size / field.ArraySize
 
 		sb.WriteString(baseIndent + fmt.Sprintf("\t// %s array (field %d, offset: %d)\n",
 			field.Name, field.Number, offset))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t%sArr := make([]any, %d)\n", field.Name, field.ArraySize))
 		sb.WriteString(baseIndent + fmt.Sprintf("\tfor i := 0; i < %d; i++ {\n", field.ArraySize))
 		sb.WriteString(baseIndent + fmt.Sprintf("\t\telemOffset := %d + (i * %d)\n", offset, elemSize))
 
-		g.generatePrimitiveDecoder(sb, field, dataVar, "elemOffset", fmt.Sprintf("%sArr[i]", field.Name), true, baseIndent)
+		g.generatePrimitiveDecoder(sb, field, dataVar, "elemOffset", fieldPath+"[i]", true, baseIndent)
 
-		sb.WriteString(baseIndent + "\t}\n\n")
-		sb.WriteString(baseIndent + fmt.Sprintf("\t%s[\"%s\"] = %sArr\n", resultVar, fieldName, field.Name))
+		sb.WriteString(baseIndent + "\t}\n")
 	} else if field.Type == parser.TypeMessage && field.MessageType != nil {
 		// Nested message
 		nestedDataName := fmt.Sprintf("%sNestedData", field.Name)
 
 		sb.WriteString(baseIndent + fmt.Sprintf("\t// %s (field %d, offset: %d, size: %d)\n",
 			field.Name, field.Number, offset, fieldLayout.Size))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t%sNested := make(map[string]any)\n\n", field.Name))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t{\n"))
+		sb.WriteString(baseIndent + "\t{\n")
 		sb.WriteString(baseIndent + fmt.Sprintf("\t\t%s := %s[%d:%d]\n\n", nestedDataName, dataVar, offset, offset+fieldLayout.Size))
 
 		nestedLayout := layouts[field.MessageType.Name]
@@ -290,17 +271,16 @@ func (g *GoGenerator) generateFieldDecoder(sb *strings.Builder, fieldLayout *ana
 				sb.WriteString("\n")
 			}
 
-			g.generateFieldDecoder(sb, nestedField, layouts, nestedDataName, fmt.Sprintf("%sNested", field.Name), depth+1)
+			g.generateFieldDecoder(sb, nestedField, layouts, nestedDataName, fieldPath, depth+1)
 		}
 
-		sb.WriteString(baseIndent + "\t}\n\n")
-		sb.WriteString(baseIndent + fmt.Sprintf("\t%s[\"%s\"] = %sNested\n", resultVar, fieldName, field.Name))
+		sb.WriteString(baseIndent + "\t}\n")
 	} else {
 		// Primitive type
 		sb.WriteString(baseIndent + fmt.Sprintf("\t// %s (field %d, offset: %d, size: %d)\n",
 			field.Name, field.Number, offset, fieldLayout.Size))
 
-		g.generatePrimitiveDecoder(sb, field, dataVar, fmt.Sprintf("%d", offset), fmt.Sprintf("%s[\"%s\"]", resultVar, fieldName), false, baseIndent)
+		g.generatePrimitiveDecoder(sb, field, dataVar, fmt.Sprintf("%d", offset), fieldPath, false, baseIndent)
 	}
 }
 
@@ -323,6 +303,8 @@ func (g *GoGenerator) generatePrimitiveDecoder(sb *strings.Builder, field *parse
 			} else {
 				offsetEnd = offsetExpr + "+4"
 			}
+		case parser.TypeBytes:
+			offsetEnd = fmt.Sprintf("%s+%d", offsetExpr, field.ArraySize)
 		}
 	} else {
 		switch field.Type {
@@ -340,6 +322,8 @@ func (g *GoGenerator) generatePrimitiveDecoder(sb *strings.Builder, field *parse
 			} else {
 				offsetEnd = fmt.Sprintf("%s+4", offsetExpr)
 			}
+		case parser.TypeBytes:
+			offsetEnd = fmt.Sprintf("%s+%d", offsetExpr, field.ArraySize)
 		}
 	}
 
@@ -360,11 +344,20 @@ func (g *GoGenerator) generatePrimitiveDecoder(sb *strings.Builder, field *parse
 		sb.WriteString(baseIndent + fmt.Sprintf("\t%s = math.Float64frombits(d.endian.Uint64(%s[%s:%s]))\n", targetVar, dataVar, offsetStart, offsetEnd))
 	case parser.TypeString:
 		sb.WriteString(baseIndent + fmt.Sprintf("\t%s = %s.decodeString(%s[%s:%s])\n", targetVar, g.helpersVarName, dataVar, offsetStart, offsetEnd))
+	case parser.TypeBytes:
+		sb.WriteString(baseIndent + fmt.Sprintf("\tcopy(%s[:], %s[%s:%s])\n", targetVar, dataVar, offsetStart, offsetEnd))
 	case parser.TypeEnum:
+		enumTypeName := "int32"
+		if field.EnumType != nil {
+			enumTypeName = field.EnumType.Name
+		}
+
 		if field.EnumType != nil && field.EnumType.Size == 1 {
-			sb.WriteString(baseIndent + fmt.Sprintf("\t%s = int32(%s[%s])\n", targetVar, dataVar, offsetStart))
+			sb.WriteString(baseIndent + fmt.Sprintf("\t%s = %s(%s[%s])\n", targetVar, enumTypeName, dataVar, offsetStart))
+		} else if field.EnumType != nil && field.EnumType.Size == 2 {
+			sb.WriteString(baseIndent + fmt.Sprintf("\t%s = %s(d.endian.Uint16(%s[%s:%s]))\n", targetVar, enumTypeName, dataVar, offsetStart, offsetEnd))
 		} else {
-			sb.WriteString(baseIndent + fmt.Sprintf("\t%s = int32(d.endian.Uint32(%s[%s:%s]))\n", targetVar, dataVar, offsetStart, offsetEnd))
+			sb.WriteString(baseIndent + fmt.Sprintf("\t%s = %s(d.endian.Uint32(%s[%s:%s]))\n", targetVar, enumTypeName, dataVar, offsetStart, offsetEnd))
 		}
 	}
 }
@@ -372,7 +365,7 @@ func (g *GoGenerator) generatePrimitiveDecoder(sb *strings.Builder, field *parse
 func (g *GoGenerator) generateEncoder(sb *strings.Builder, msg *parser.Message, layout *analyzer.MessageLayout, layouts map[string]*analyzer.MessageLayout, byteOrder string) {
 	encoderName := fmt.Sprintf("%sEncoder", msg.Name)
 
-	sb.WriteString(fmt.Sprintf("// %s encodes JSON to binary data\n", encoderName))
+	sb.WriteString(fmt.Sprintf("// %s encodes a %s struct to binary data\n", encoderName, msg.Name))
 	sb.WriteString(fmt.Sprintf("type %s struct {\n", encoderName))
 	sb.WriteString("\tendian binary.ByteOrder\n")
 	sb.WriteString("}\n\n")
@@ -385,38 +378,24 @@ func (g *GoGenerator) generateEncoder(sb *strings.Builder, msg *parser.Message, 
 	sb.WriteString("}\n\n")
 
 	// Encode method
-	sb.WriteString(fmt.Sprintf("// Encode encodes JSON string to binary data\n"))
-	sb.WriteString(fmt.Sprintf("func (e *%s) Encode(msg []byte) ([]byte, error) {\n", encoderName))
-	sb.WriteString("\tdata := make(map[string]any)\n\n")
-	sb.WriteString(fmt.Sprintf("\tif err := json.Unmarshal(msg, &data); err != nil {\n"))
-	sb.WriteString("\t\treturn nil, err\n")
-	sb.WriteString("\t}\n\n")
+	sb.WriteString(fmt.Sprintf("// Encode encodes a %s struct to binary data\n", msg.Name))
+	sb.WriteString(fmt.Sprintf("func (e *%s) Encode(msg *%s) ([]byte, error) {\n", encoderName, msg.Name))
 	sb.WriteString(fmt.Sprintf("\tbuffer := make([]byte, %s)\n", g.constants[msg.Name+"Size"]))
 
 	// Handle union discriminator
 	if msg.Union && layout.HasDiscriminator {
 		sb.WriteString("\n\t// Union discriminator\n")
-		sb.WriteString("\tif len(data) != 1 {\n")
-		sb.WriteString("\t\t// only one variant is allowed in a union\n")
-		sb.WriteString("\t\treturn nil, errors.New(\"invalid union\")\n")
-		sb.WriteString("\t}\n\n")
-		sb.WriteString("\tfor name, value := range data {\n")
-		sb.WriteString("\t\tswitch name {\n")
+		sb.WriteString(fmt.Sprintf("\tbuffer[%d] = msg.Discriminator\n\n", layout.DiscriminatorOffset))
+		sb.WriteString("\tswitch msg.Discriminator {\n")
+		sb.WriteString("\tcase 0:\n")
 
 		for _, fieldLayout := range layout.Fields {
-			fieldName := toCamelCase(fieldLayout.Field.Name)
-
-			sb.WriteString(fmt.Sprintf("\t\tcase \"%s\":\n", fieldName))
-			sb.WriteString(fmt.Sprintf("\t\t\tbuffer[%d] = %d\n\n", layout.DiscriminatorOffset, fieldLayout.Field.Number))
-
-			g.generateFieldEncoder(sb, fieldLayout, layouts, "data", "buffer", 0)
+			sb.WriteString(fmt.Sprintf("\tcase %d:\t\t// %s\n", fieldLayout.Field.Number, fieldLayout.Field.Name))
+			g.generateFieldEncoder(sb, fieldLayout, layouts, "msg", "buffer", 0)
 		}
 
-		sb.WriteString("\t\tdefault:\n")
-		sb.WriteString("\t\t\treturn nil, fmt.Errorf(\"invalid union variant: %s\", name)\n")
-		sb.WriteString("\t\t}\n\n")
-		sb.WriteString("\t\t// ensure the loop only runs once\n")
-		sb.WriteString("\t\tbreak\n")
+		sb.WriteString("\tdefault:\n")
+		sb.WriteString("\t\treturn nil, fmt.Errorf(\"unknown union variant: %d\", msg.Discriminator)\n")
 		sb.WriteString("\t}\n\n")
 		sb.WriteString("\treturn buffer, nil\n")
 		sb.WriteString("}\n\n")
@@ -427,37 +406,26 @@ func (g *GoGenerator) generateEncoder(sb *strings.Builder, msg *parser.Message, 
 	// Encode fields (non-union)
 	for _, fieldLayout := range layout.Fields {
 		sb.WriteString("\n")
-		g.generateFieldEncoder(sb, fieldLayout, layouts, "data", "buffer", 0)
+		g.generateFieldEncoder(sb, fieldLayout, layouts, "msg", "buffer", 0)
 	}
 
 	// Encode oneofs
 	for _, oneofLayout := range layout.Oneofs {
-		oneofName := toCamelCase(oneofLayout.Oneof.Name)
+		oneofFieldName := toPascalCase(oneofLayout.Oneof.Name)
 
 		sb.WriteString(fmt.Sprintf("\n\t// Oneof %s\n", oneofLayout.Oneof.Name))
-		sb.WriteString(fmt.Sprintf("\tif %sData, %sOk := data[\"%s\"].(map[string]any); %sOk && len(%sData) == 1 {\n",
-			oneofLayout.Oneof.Name, oneofLayout.Oneof.Name, oneofName, oneofLayout.Oneof.Name, oneofLayout.Oneof.Name))
-		sb.WriteString("\t\t// only one variant is allowed in a oneof\n")
-		sb.WriteString(fmt.Sprintf("\t\tfor key, _ := range %sData {\n", oneofLayout.Oneof.Name))
-		sb.WriteString("\t\t\tswitch key {\n")
+		sb.WriteString(fmt.Sprintf("\tbuffer[%d] = msg.%s.Discriminator\n\n", oneofLayout.DiscriminatorOffset, oneofFieldName))
+		sb.WriteString(fmt.Sprintf("\tswitch msg.%s.Discriminator {\n", oneofFieldName))
+		sb.WriteString("\tcase 0:\n")
 
 		for _, variantLayout := range oneofLayout.Fields {
-			variantName := toCamelCase(variantLayout.Field.Name)
-
-			sb.WriteString(fmt.Sprintf("\t\t\tcase \"%s\":\n", variantName))
-			sb.WriteString(fmt.Sprintf("\t\t\t\tbuffer[%d] = %d\n\n", oneofLayout.DiscriminatorOffset, variantLayout.Field.Number))
-
-			g.generateFieldEncoder(sb, variantLayout, layouts, oneofLayout.Oneof.Name+"Data", "buffer", 3)
-
+			sb.WriteString(fmt.Sprintf("\tcase %d:\t\t// %s\n", variantLayout.Field.Number, variantLayout.Field.Name))
+			g.generateFieldEncoder(sb, variantLayout, layouts, fmt.Sprintf("msg.%s", oneofFieldName), "buffer", 1)
 			sb.WriteString("\n")
 		}
 
-		sb.WriteString("\t\t\tdefault:\n")
-		sb.WriteString("\t\t\t\treturn nil, fmt.Errorf(\"invalid oneof variant: %s\", key)\n")
-		sb.WriteString("\t\t\t}\n\n")
-		sb.WriteString("\t\t// ensure the loop only runs once\n")
-		sb.WriteString("\t\tbreak\n")
-		sb.WriteString("\t\t}\n")
+		sb.WriteString("\tdefault:\n")
+		sb.WriteString(fmt.Sprintf("\t\treturn nil, fmt.Errorf(\"oneof %s: unknown discriminator value: %%d\", msg.%s.Discriminator)\n", oneofLayout.Oneof.Name, oneofFieldName))
 		sb.WriteString("\t}\n")
 	}
 
@@ -465,53 +433,47 @@ func (g *GoGenerator) generateEncoder(sb *strings.Builder, msg *parser.Message, 
 	sb.WriteString("}\n\n")
 }
 
-func (g *GoGenerator) generateFieldEncoder(sb *strings.Builder, fieldLayout *analyzer.FieldLayout, layouts map[string]*analyzer.MessageLayout, dataVar, bufferVar string, depth int) {
+func (g *GoGenerator) generateFieldEncoder(sb *strings.Builder, fieldLayout *analyzer.FieldLayout, layouts map[string]*analyzer.MessageLayout, structPath, bufferVar string, depth int) {
 	baseIndent := strings.Repeat("\t", depth)
 
 	field := fieldLayout.Field
 	offset := fieldLayout.Offset
-	fieldName := toCamelCase(field.Name)
+	fieldPath := structPath + "." + toPascalCase(field.Name)
 
 	if field.Repeated {
-		// Handle arrays
 		elemSize := fieldLayout.Size / field.ArraySize
 
-		sb.WriteString(baseIndent + fmt.Sprintf("\t// %s (field %d, size %d, array)\n", field.Name, field.Number, field.ArraySize))
-		sb.WriteString(baseIndent + fmt.Sprintf("\tif %sData, %sOk := %s[\"%s\"].([]any); %sOk {\n", field.Name, field.Name, dataVar, fieldName, field.Name))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\tfor i, elem := range %sData {\n", field.Name))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\t\tif i >= %d {\n", field.ArraySize))
-		sb.WriteString(baseIndent + "\t\t\t\tbreak\n")
-		sb.WriteString(baseIndent + "\t\t\t}\n\n")
+		sb.WriteString(baseIndent + fmt.Sprintf("\t// %s (field %d)\n", field.Name, field.Number))
 
-		// Encode element based on type
 		if field.Type == parser.TypeMessage && field.MessageType != nil {
-			elemMapName := fmt.Sprintf("%sElemMap", fieldName)
-
-			sb.WriteString(baseIndent + fmt.Sprintf("\t\t\tif %s, %sOk := elem.(map[string]any); %sOk {\n", elemMapName, elemMapName, elemMapName))
+			// Array of messages
+			sb.WriteString(baseIndent + fmt.Sprintf("\tfor i := range %s {\n", fieldPath))
+			sb.WriteString(baseIndent + fmt.Sprintf("\t\telemBase := %d + (i * %d)\n\n", offset, elemSize))
 
 			nestedLayout := layouts[field.MessageType.Name]
 
-			for i, nestedField := range nestedLayout.Fields {
-				if i != 0 {
+			for j, nestedField := range nestedLayout.Fields {
+				if j != 0 {
 					sb.WriteString("\n")
 				}
 
-				g.generateFieldEncoder(sb, nestedField, layouts, elemMapName, bufferVar, depth+1)
+				nestedOffsetExpr := fmt.Sprintf("elemBase+%d", nestedField.Offset)
+				nestedValuePath := fmt.Sprintf("%s[i].%s", fieldPath, toPascalCase(nestedField.Field.Name))
+				sb.WriteString(baseIndent + fmt.Sprintf("\t\t// %s\n", nestedField.Field.Name))
+				g.generatePrimitiveEncoder(sb, nestedField.Field, nestedOffsetExpr, nestedValuePath, baseIndent+"\t")
 			}
 
-			sb.WriteString(baseIndent + "\t\t\t}\n")
+			sb.WriteString(baseIndent + "\t}\n")
 		} else {
-			sb.WriteString(baseIndent + fmt.Sprintf("\t\t\telemOffset := %d + (i * %d)\n\n", offset, elemSize))
-
-			g.generatePrimitiveEncoder(sb, field, "elemOffset", "elem", baseIndent+"\t\t")
+			// Array of primitives
+			sb.WriteString(baseIndent + fmt.Sprintf("\tfor i, elem := range %s {\n", fieldPath))
+			sb.WriteString(baseIndent + fmt.Sprintf("\t\telemOffset := %d + (i * %d)\n\n", offset, elemSize))
+			g.generatePrimitiveEncoder(sb, field, "elemOffset", "elem", baseIndent+"\t")
+			sb.WriteString(baseIndent + "\t}\n")
 		}
-
-		sb.WriteString(baseIndent + "\t\t}\n")
-		sb.WriteString(baseIndent + "\t}\n")
 	} else if field.Type == parser.TypeMessage && field.MessageType != nil {
 		// Nested message
 		sb.WriteString(baseIndent + fmt.Sprintf("\t// %s (field %d)\n", field.Name, field.Number))
-		sb.WriteString(baseIndent + fmt.Sprintf("\tif %sData, %sOk := %s[\"%s\"].(map[string]any); %sOk {\n", field.Name, field.Name, dataVar, fieldName, field.Name))
 
 		nestedLayout := layouts[field.MessageType.Name]
 
@@ -520,70 +482,51 @@ func (g *GoGenerator) generateFieldEncoder(sb *strings.Builder, fieldLayout *ana
 				sb.WriteString("\n")
 			}
 
-			// Adjust nested field offset to be absolute (parent offset + nested offset)
 			adjustedField := &analyzer.FieldLayout{
 				Field:  nestedField.Field,
 				Offset: offset + nestedField.Offset,
 				Size:   nestedField.Size,
 			}
 
-			g.generateFieldEncoder(sb, adjustedField, layouts, fmt.Sprintf("%sData", field.Name), bufferVar, depth+1)
+			g.generateFieldEncoder(sb, adjustedField, layouts, fieldPath, bufferVar, depth)
 		}
-
-		sb.WriteString(baseIndent + "\t}\n")
 	} else {
 		// Primitive type
 		sb.WriteString(baseIndent + fmt.Sprintf("\t// %s (field %d)\n", field.Name, field.Number))
-		sb.WriteString(baseIndent + fmt.Sprintf("\tif v, vOk := %s[\"%s\"]; vOk {\n", dataVar, fieldName))
-
-		g.generatePrimitiveEncoder(sb, field, fmt.Sprintf("%d", offset), "v", baseIndent+"\t")
-
-		sb.WriteString(baseIndent + "\t}\n")
+		g.generatePrimitiveEncoder(sb, field, fmt.Sprintf("%d", offset), fieldPath, baseIndent)
 	}
 }
 
 func (g *GoGenerator) generatePrimitiveEncoder(sb *strings.Builder, field *parser.Field, offsetExpr, valueVar string, baseIndent string) {
 	switch field.Type {
 	case parser.TypeBool:
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\tif boolVal, ok := %s.(bool); ok {\n", valueVar))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\t\tif boolVal {\n"))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\t\t\tbuffer[%s] = 1\n", offsetExpr))
-		sb.WriteString(baseIndent + "\t\t\t}\n")
-		sb.WriteString(baseIndent + "\t\t}\n")
+		sb.WriteString(baseIndent + fmt.Sprintf("\tif %s {\n", valueVar))
+		sb.WriteString(baseIndent + fmt.Sprintf("\t\tbuffer[%s] = 1\n", offsetExpr))
+		sb.WriteString(baseIndent + "\t}\n")
 
 	case parser.TypeUint32:
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\tif numVal, ok := %s.(float64); ok {\n", valueVar))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\t\te.endian.PutUint32(buffer[%s:%s+4], uint32(numVal))\n", offsetExpr, offsetExpr))
-		sb.WriteString(baseIndent + "\t\t}\n")
+		sb.WriteString(baseIndent + fmt.Sprintf("\te.endian.PutUint32(buffer[%s:%s+4], %s)\n", offsetExpr, offsetExpr, valueVar))
 
 	case parser.TypeInt32:
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\tif numVal, ok := %s.(float64); ok {\n", valueVar))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\t\te.endian.PutUint32(buffer[%s:%s+4], uint32(int32(numVal)))\n", offsetExpr, offsetExpr))
-		sb.WriteString(baseIndent + "\t\t}\n")
+		sb.WriteString(baseIndent + fmt.Sprintf("\te.endian.PutUint32(buffer[%s:%s+4], uint32(%s))\n", offsetExpr, offsetExpr, valueVar))
 
 	case parser.TypeUint64:
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\tif numVal, ok := %s.(float64); ok {\n", valueVar))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\t\te.endian.PutUint64(buffer[%s:%s+8], uint64(numVal))\n", offsetExpr, offsetExpr))
-		sb.WriteString(baseIndent + "\t\t}\n")
+		sb.WriteString(baseIndent + fmt.Sprintf("\te.endian.PutUint64(buffer[%s:%s+8], %s)\n", offsetExpr, offsetExpr, valueVar))
 
 	case parser.TypeInt64:
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\tif numVal, ok := %s.(float64); ok {\n", valueVar))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\t\te.endian.PutUint64(buffer[%s:%s+8], uint64(int64(numVal)))\n", offsetExpr, offsetExpr))
-		sb.WriteString(baseIndent + "\t\t}\n")
+		sb.WriteString(baseIndent + fmt.Sprintf("\te.endian.PutUint64(buffer[%s:%s+8], uint64(%s))\n", offsetExpr, offsetExpr, valueVar))
 
 	case parser.TypeFloat:
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\tif numVal, ok := %s.(float64); ok {\n", valueVar))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\t\te.endian.PutUint32(buffer[%s:%s+4], math.Float32bits(float32(numVal)))\n", offsetExpr, offsetExpr))
-		sb.WriteString(baseIndent + "\t\t}\n")
+		sb.WriteString(baseIndent + fmt.Sprintf("\te.endian.PutUint32(buffer[%s:%s+4], math.Float32bits(%s))\n", offsetExpr, offsetExpr, valueVar))
 
 	case parser.TypeDouble:
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\tif numVal, ok := %s.(float64); ok {\n", valueVar))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\t\te.endian.PutUint64(buffer[%s:%s+8], math.Float64bits(numVal))\n", offsetExpr, offsetExpr))
-		sb.WriteString(baseIndent + "\t\t}\n")
+		sb.WriteString(baseIndent + fmt.Sprintf("\te.endian.PutUint64(buffer[%s:%s+8], math.Float64bits(%s))\n", offsetExpr, offsetExpr, valueVar))
+
 	case parser.TypeString:
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\tif strVal, ok := %s.(string); ok {\n", valueVar))
-		sb.WriteString(baseIndent + fmt.Sprintf("\t\t\tcopy(buffer[%s:%s+%d], %s.encodeString(strVal, %d))\n", offsetExpr, offsetExpr, field.StringSize, g.helpersVarName, field.StringSize))
-		sb.WriteString(baseIndent + "\t\t}\n")
+		sb.WriteString(baseIndent + fmt.Sprintf("\tcopy(buffer[%s:%s+%d], %s.encodeString(%s, %d))\n", offsetExpr, offsetExpr, field.StringSize, g.helpersVarName, valueVar, field.StringSize))
+
+	case parser.TypeBytes:
+		sb.WriteString(baseIndent + fmt.Sprintf("\tcopy(buffer[%s:%s+%d], %s[:])\n", offsetExpr, offsetExpr, field.ArraySize, valueVar))
 
 	case parser.TypeEnum:
 		size := uint32(4)
@@ -592,18 +535,13 @@ func (g *GoGenerator) generatePrimitiveEncoder(sb *strings.Builder, field *parse
 			size = field.EnumType.Size
 		}
 
-		if size == 1 {
-			sb.WriteString(baseIndent + fmt.Sprintf("\t\tif numVal, ok := %s.(float64); ok {\n", valueVar))
-			sb.WriteString(baseIndent + fmt.Sprintf("\t\t\tbuffer[%s] = uint8(numVal)\n", offsetExpr))
-			sb.WriteString(baseIndent + "\t\t}\n")
-		} else if size == 2 {
-			sb.WriteString(baseIndent + fmt.Sprintf("\t\tif numVal, ok := %s.(float64); ok {\n", valueVar))
-			sb.WriteString(baseIndent + fmt.Sprintf("\t\t\te.endian.PutUint16(buffer[%s:%s+2], uint16(numVal))\n", offsetExpr, offsetExpr))
-			sb.WriteString(baseIndent + "\t\t}\n")
-		} else {
-			sb.WriteString(baseIndent + fmt.Sprintf("\t\tif numVal, ok := %s.(float64); ok {\n", valueVar))
-			sb.WriteString(baseIndent + fmt.Sprintf("\t\t\te.endian.PutUint32(buffer[%s:%s+4], uint32(numVal))\n", offsetExpr, offsetExpr))
-			sb.WriteString(baseIndent + "\t\t}\n")
+		switch size {
+		case 1:
+			sb.WriteString(baseIndent + fmt.Sprintf("\tbuffer[%s] = uint8(%s)\n", offsetExpr, valueVar))
+		case 2:
+			sb.WriteString(baseIndent + fmt.Sprintf("\te.endian.PutUint16(buffer[%s:%s+2], uint16(%s))\n", offsetExpr, offsetExpr, valueVar))
+		default:
+			sb.WriteString(baseIndent + fmt.Sprintf("\te.endian.PutUint32(buffer[%s:%s+4], uint32(%s))\n", offsetExpr, offsetExpr, valueVar))
 		}
 	}
 }
